@@ -228,5 +228,8 @@ app.delete('/api/properties/:id', async (req, res) => {
   }
 });
 
-// ---------------------- Start Server ----------------------
-app.listen(port, () => console.log(`Server running at http://localhost:${port}`));
+
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
