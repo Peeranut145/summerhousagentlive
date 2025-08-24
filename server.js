@@ -183,15 +183,36 @@ app.get('/api/properties/:id', async (req, res) => {
 
 // POST new property
 app.post('/api/properties', upload.array('images'), async (req, res) => {
-  const { name, price, location, type, status, description, contact_info } = req.body;
-  const images = req.files.map(f => `/uploads/${f.filename}`);
-  if (!name || !price || !location || !contact_info) return res.status(400).json({ error: 'Missing required fields' });
+  const { 
+    name, price, location, type, status, description, contact_info,
+    bedrooms, bathrooms, swimming_pool, building_area, land_area,
+    ownership, construction_status, floors, furnished, parking,
+    is_featured, user_id
+  } = req.body;
+
+  if (!name || !price || !location || !contact_info) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const images = req.files.map(f => `/uploads/${f.filename}`); // array of image paths
 
   try {
     const result = await pool.query(`
-      INSERT INTO properties (name, price, location, type, status, description, images, contact_info, created_at, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW()) RETURNING property_id
-    `, [name, price, location, type, status, description, images, contact_info]);
+      INSERT INTO properties
+      (name, price, location, type, status, description, image, bedrooms, bathrooms, swimming_pool,
+       building_area, land_area, ownership, construction_status, floors, furnished, parking, is_featured,
+       created_at, updated_at, user_id, contact_info, images)
+      VALUES
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,NOW(),NOW(),$19,$20,$21)
+      RETURNING property_id
+    `, [
+      name, price, location, type, status, description, images[0] || null, 
+      bedrooms || null, bathrooms || null, swimming_pool || null,
+      building_area || null, land_area || null, ownership || null, construction_status || null,
+      floors || null, furnished || null, parking || null, is_featured || false,
+      user_id || null, contact_info, images
+    ]);
+
     res.status(201).json({ message: 'Property added', propertyId: result.rows[0].property_id });
   } catch (err) {
     console.error('Property insert error:', err);
@@ -200,20 +221,48 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
 });
 
 // PUT property
-app.put('/api/properties/:id', async (req, res) => {
+app.put('/api/properties/:id', upload.array('images'), async (req, res) => {
   const { id } = req.params;
-  const { name, price, location, type, status, description, contact_info } = req.body;
+  const { 
+    name, price, location, type, status, description, contact_info,
+    bedrooms, bathrooms, swimming_pool, building_area, land_area,
+    ownership, construction_status, floors, furnished, parking,
+    is_featured, user_id
+  } = req.body;
+
+  const images = req.files.length > 0 ? req.files.map(f => `/uploads/${f.filename}`) : null;
+
   try {
-    await pool.query(`
-      UPDATE properties SET name=$1, price=$2, location=$3, type=$4, status=$5, description=$6, contact_info=$7, updated_at=NOW()
-      WHERE property_id=$8
-    `, [name, price, location, type, status, description, contact_info, id]);
+    const query = `
+      UPDATE properties SET
+        name=$1, price=$2, location=$3, type=$4, status=$5, description=$6,
+        image=$7, bedrooms=$8, bathrooms=$9, swimming_pool=$10,
+        building_area=$11, land_area=$12, ownership=$13, construction_status=$14,
+        floors=$15, furnished=$16, parking=$17, is_featured=$18,
+        updated_at=NOW(), user_id=$19, contact_info=$20
+        ${images ? ', images=$21' : ''}
+      WHERE property_id=$22
+    `;
+    const params = [
+      name, price, location, type, status, description,
+      images ? images[0] : null, bedrooms, bathrooms, swimming_pool,
+      building_area, land_area, ownership, construction_status,
+      floors, furnished, parking, is_featured || false,
+      user_id, contact_info
+    ];
+
+    if (images) params.push(images); // สำหรับ images array
+    params.push(id);
+
+    await pool.query(query, params);
+
     res.json({ message: 'Property updated' });
   } catch (err) {
     console.error('Property update error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // DELETE property
 app.delete('/api/properties/:id', async (req, res) => {
