@@ -1,3 +1,4 @@
+// drive.js
 const { google } = require('googleapis');
 const fs = require('fs');
 
@@ -11,22 +12,6 @@ const auth = new google.auth.GoogleAuth({
 async function getDriveService() {
   const client = await auth.getClient();
   return google.drive({ version: 'v3', auth: client });
-}
-
-async function createFolder(folderName, parentId = null) {
-  const drive = await getDriveService();
-  const fileMetadata = {
-    name: folderName,
-    mimeType: 'application/vnd.google-apps.folder',
-  };
-  if (parentId) fileMetadata.parents = [parentId];
-
-  const res = await drive.files.create({
-    requestBody: fileMetadata,
-    fields: 'id',
-  });
-
-  return res.data.id;
 }
 
 async function uploadFileToDrive(path, name, mimeType, folderId = null) {
@@ -50,4 +35,22 @@ async function uploadFileToDrive(path, name, mimeType, folderId = null) {
   return `https://drive.google.com/uc?id=${res.data.id}`;
 }
 
-module.exports = { createFolder, uploadFileToDrive };
+// ✅ ฟังก์ชันสำหรับสร้างโฟลเดอร์
+async function createFolder(name, parentId = null) {
+  const drive = await getDriveService();
+
+  const fileMetadata = {
+    name,
+    mimeType: 'application/vnd.google-apps.folder',
+  };
+  if (parentId) fileMetadata.parents = [parentId];
+
+  const res = await drive.files.create({
+    requestBody: fileMetadata,
+    fields: 'id,name',
+  });
+
+  return res.data; // { id, name }
+}
+
+module.exports = { uploadFileToDrive, createFolder };

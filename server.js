@@ -13,7 +13,6 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
-const { createFolder, uploadFileToDrive } = require('./drive');
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
@@ -70,31 +69,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
- // ---------------------google drive api ---------//
-const oAuth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
-);
-oAuth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
-async function uploadFileToDrive(filePath, fileName, mimeType) {
-  const drive = google.drive({ version: 'v3', auth: oAuth2Client });
-  
-  const res = await drive.files.create({
-    requestBody: { name: fileName },
-    media: { mimeType, body: fs.createReadStream(filePath) },
-    fields: 'id,name',
-  });
-
-  // ทำ public
-  await drive.permissions.create({
-    fileId: res.data.id,
-    requestBody: { role: 'reader', type: 'anyone' },
-  });
-
-  fs.unlinkSync(filePath); // ลบไฟล์ชั่วคราว
-  return `https://drive.google.com/uc?id=${res.data.id}`;
-}
+ 
 
 // ---------------------- Auth Routes ----------------------
 
@@ -212,33 +187,6 @@ app.get('/api/properties/:id', async (req, res) => {
   }
 });
 
-
-
-// โหลด credential ของ Service Account จาก environment variable
-const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
-const auth = new google.auth.GoogleAuth({
-  credentials,
-  scopes: ['https://www.googleapis.com/auth/drive.file'],
-});
-const drive = google.drive({ version: 'v3', auth });
-
-// ฟังก์ชัน upload
-async function uploadFileToDrive(path, name, mimeType) {
-  const res = await drive.files.create({
-    requestBody: { name },
-    media: { mimeType, body: fs.createReadStream(path) },
-    fields: 'id,name',
-  });
-
-  await drive.permissions.create({
-    fileId: res.data.id,
-    requestBody: { role: 'reader', type: 'anyone' },
-  });
-
-  fs.unlinkSync(path); // ลบไฟล์ชั่วคราว
-  return `https://drive.google.com/uc?id=${res.data.id}`;
-}
-const fs = require('fs');
 
 app.post('/api/properties', upload.array('images'), async (req, res) => {
   const data = req.body;
