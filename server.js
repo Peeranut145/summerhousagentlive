@@ -244,7 +244,7 @@ app.put('/api/properties/:id', async (req, res) => {
         floors=$16,
         furnished=$17,
         parking=$18
-      WHERE id=$19
+      WHERE property_id=$19
     `;
 
     const values = [
