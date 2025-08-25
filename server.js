@@ -195,16 +195,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
   let imageUrls = [];
 
   try {
-    // ✅ ดึงค่า field จำเป็นและแปลงประเภทให้ถูกต้อง
-    const user_id = parseInt(data.user_id) || 1; // แก้เป็นจาก auth ถ้ามี
-    const price = parseFloat(data.price) || 0;
-    const bedrooms = parseInt(data.bedrooms) || 0;
-    const bathrooms = parseInt(data.bathrooms) || 0;
-    const is_featured = data.is_featured === 'true' || false;
-    const swimming_pool = data.swimming_pool === 'true' || false;
-    const floors = parseInt(data.floors) || 1;
-    const furnished = data.furnished === 'true' || false;
-    const parking = data.parking === 'true' || false;
+  
 
     // ✅ ตรวจสอบ field จำเป็น
     if (!data.name || !price || !data.location || !data.contact_info) {
