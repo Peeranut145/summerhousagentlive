@@ -225,22 +225,20 @@ app.put('/api/properties/:id', async (req, res) => {
     const propertyId = req.params.id;
     const data = req.body;
 
-    // ✅ ดึง images จาก body หรือถ้าไม่มีให้เป็น []
-    const images = data.images || [];
 
     await pool.query(`
       UPDATE properties SET
         name=$1, price=$2, location=$3, type=$4, status=$5, description=$6,
         contact_info=$7, construction_status=$8, bedrooms=$9, bathrooms=$10,
         is_featured=$11, swimming_pool=$12, building_area=$13, land_area=$14,
-        ownership=$15, floors=$16, furnished=$17, parking=$18, images=$19
-      WHERE id=$20
+        ownership=$15, floors=$16, furnished=$17, parking=$18, 
+      WHERE id=$19
     `, [
       data.name, data.price, data.location, data.type, data.status, data.description,
       data.contact_info, data.construction_status, data.bedrooms, data.bathrooms,
       data.is_featured, data.swimming_pool, data.building_area, data.land_area,
       data.ownership, data.floors, data.furnished, data.parking,
-      images.length > 0 ? images : null,  // ✅ ตอนนี้มีค่าแน่นอน
+  
       propertyId
     ]);
 
