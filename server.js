@@ -12,7 +12,8 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
-
+const { google } = require('googleapis');
+const fs = require('fs');
 const app = express();
 
 app.set('trust proxy', 1); // 🟢 บอกให้เชื่อ Proxy (เช่น Render, Heroku)
@@ -67,6 +68,32 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS
   }
 });
+
+ // ---------------------google drive api ---------//
+const oAuth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI
+);
+oAuth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
+async function uploadFileToDrive(filePath, fileName, mimeType) {
+  const drive = google.drive({ version: 'v3', auth: oAuth2Client });
+  
+  const res = await drive.files.create({
+    requestBody: { name: fileName },
+    media: { mimeType, body: fs.createReadStream(filePath) },
+    fields: 'id,name',
+  });
+
+  // ทำ public
+  await drive.permissions.create({
+    fileId: res.data.id,
+    requestBody: { role: 'reader', type: 'anyone' },
+  });
+
+  fs.unlinkSync(filePath); // ลบไฟล์ชั่วคราว
+  return `https://drive.google.com/uc?id=${res.data.id}`;
+}
 
 // ---------------------- Auth Routes ----------------------
 
@@ -183,18 +210,19 @@ app.get('/api/properties/:id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 app.post('/api/properties', upload.array('images'), async (req, res) => {
   const data = req.body;
-  const images = (req.files && req.files.length > 0)
-    ? req.files.map(f => `/uploads/${f.filename}`)
-    : [];
-
-  if (!data.name || !data.price || !data.location || !data.contact_info) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
+  let imageUrls = [];
 
   try {
+    if (req.files && req.files.length > 0) {
+      for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i];
+        const url = await uploadFileToDrive(file.path, file.originalname, file.mimetype);
+        imageUrls.push(url);
+      }
+    }
+
     const result = await pool.query(`
       INSERT INTO properties
         (name, price, location, type, status, description, contact_info,
@@ -204,13 +232,12 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       VALUES
         ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW(),NOW())
       RETURNING *;
-    `, [   
-          data.name, data.price, data.location, data.type, data.status, data.description,
-          data.contact_info, data.construction_status, data.bedrooms, data.bathrooms,
-          data.is_featured, data.swimming_pool, data.building_area, data.land_area,
-          data.ownership, data.floors, data.furnished, data.parking,
-          images.length > 0 ? images : null,  // ✅ ส่ง array ถ้ามีรูป ไม่งั้น null
-          propertyId
+    `, [
+      data.name, data.price, data.location, data.type, data.status, data.description,
+      data.contact_info, data.construction_status, data.bedrooms, data.bathrooms,
+      data.is_featured, data.swimming_pool, data.building_area, data.land_area,
+      data.ownership, data.floors, data.furnished, data.parking,
+      imageUrls.length > 0 ? imageUrls : null
     ]);
 
     res.status(201).json({ message: 'Property added', property: result.rows[0] });
