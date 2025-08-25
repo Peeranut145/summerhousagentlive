@@ -187,37 +187,52 @@ app.get('/api/properties/:id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// Middleware ตรวจ JWT
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.sendStatus(401);
 
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.user = user;
+    next();
+  });
+}
 
-app.post('/api/properties', upload.array('images'), async (req, res) => {
+// POST /api/properties
+app.post('/api/properties', authenticateToken, upload.array('images'), async (req, res) => {
   const data = req.body;
   let imageUrls = [];
 
   try {
-    // สร้างโฟลเดอร์ใน Shared Drive
+    // สร้างโฟลเดอร์ใน Google Drive
     const folderName = `${data.name}-${Date.now()}`;
     const folderData = await createFolder(folderName, process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID);
     const folderId = folderData.id;
 
-    // อัปโหลดไฟล์ไป Shared Drive
+    // อัปโหลดรูปไป Google Drive
     if (req.files && req.files.length > 0) {
       for (let file of req.files) {
         const url = await uploadFileToDrive(file.path, file.originalname, file.mimetype, folderId);
         imageUrls.push(url);
-        // ไม่ต้องลบไฟล์อีก เพราะฟังก์ชัน uploadFileToDrive ลบให้แล้ว
       }
     }
 
-    // แปลงค่าจาก form
+    // แปลงค่า
+    const price = data.price ? parseFloat(data.price) : null;
     const bedrooms = data.bedrooms ? parseInt(data.bedrooms, 10) : null;
     const bathrooms = data.bathrooms ? parseInt(data.bathrooms, 10) : null;
-    const is_featured = data.is_featured === "true";
-    const swimming_pool = data.swimming_pool === "true";
+    const floors = data.floors ? parseInt(data.floors, 10) : null;
+    const parking = data.parking ? parseInt(data.parking, 10) : null;
+    const is_featured = data.is_featured === "true" || data.is_featured === true;
+    const swimming_pool = data.swimming_pool === "true" || data.swimming_pool === true;
+    const user_id = req.user.userId;
 
-    // บันทึกลง DB
+    // Insert ลง DB
     const result = await pool.query(`
       INSERT INTO properties
-      (name, price, location, type, status, description, contact_info,
+      (user_id, name, price, location, type, status, description, contact_info,
        construction_status, bedrooms, bathrooms, is_featured,
        swimming_pool, building_area, land_area, ownership, floors,
        furnished, parking, images, created_at, updated_at)
@@ -225,10 +240,25 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW(),NOW())
       RETURNING *;
     `, [
-      data.name, data.price, data.location, data.type, data.status, data.description,
-      data.contact_info, data.construction_status, bedrooms, bathrooms,
-      is_featured, swimming_pool, data.building_area, data.land_area, data.ownership,
-      data.floors, data.furnished, data.parking,
+      user_id,
+      data.name,
+      price,
+      data.location,
+      data.type,
+      data.status,
+      data.description,
+      data.contact_info,
+      data.construction_status,
+      bedrooms,
+      bathrooms,
+      is_featured,
+      swimming_pool,
+      data.building_area,
+      data.land_area,
+      data.ownership,
+      floors,
+      data.furnished,
+      parking,
       imageUrls.length > 0 ? JSON.stringify(imageUrls) : null
     ]);
 
@@ -239,6 +269,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     res.status(500).json({ error:'Internal server error' });
   }
 });
+
 
 
 app.put('/api/properties/:id', async (req, res) => {
