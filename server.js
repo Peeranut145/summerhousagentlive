@@ -230,7 +230,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
   let imageUrls = [];
 
   try {
-    const user_id = parseInt(data.user_id) || 1;
+    const user_id = parseInt(data.user_id) || 1; 
     const price = parseFloat(data.price) || 0;
     const bedrooms = parseInt(data.bedrooms) || 0;
     const bathrooms = parseInt(data.bathrooms) || 0;
@@ -244,33 +244,33 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // สร้างโฟลเดอร์บน Google Drive
+    // สร้างโฟลเดอร์ใน Google Drive
     const folderName = `${data.name}-${Date.now()}`;
     const folderData = await createFolder(folderName, process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID);
     const folderId = folderData.id;
 
-    // อัปโหลดแต่ละไฟล์ไป Google Drive
+    // อัปโหลดไฟล์ไป Google Drive
     if (req.files && req.files.length > 0) {
       for (let file of req.files) {
         try {
-          // url ต้องเป็น direct link หรือเก็บ fileId
           const url = await uploadFileToDrive(file.path, file.originalname, file.mimetype, folderId);
-          imageUrls.push(url); // เก็บเป็น array ของ Google Drive URL
+          imageUrls.push(url); // URL จะเป็น direct link
         } catch (err) {
           console.error('Upload file error:', err);
+          continue;
         }
       }
     }
 
-    // Insert ลง DB: ใช้ imageUrls.join(',') หรือ JSON.stringify
+    // บันทึก property พร้อม images เป็น JSON array
     const result = await pool.query(`
       INSERT INTO properties
         (user_id, name, price, location, type, status, description, image,
         bedrooms, bathrooms, swimming_pool, building_area, land_area,
         ownership, construction_status, floors, furnished, parking,
-        is_featured, created_at)
+        is_featured, created_at, images)
       VALUES
-        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW())
+        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW(),$20)
       RETURNING *;
     `, [
       user_id,
@@ -280,7 +280,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       data.type || null,
       data.status || null,
       data.description || null,
-      imageUrls.length > 0 ? JSON.stringify(imageUrls) : null, // ✅ เก็บ JSON string
+      imageUrls.length > 0 ? imageUrls[0] : null,
       bedrooms,
       bathrooms,
       swimming_pool,
@@ -291,15 +291,18 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       floors,
       furnished,
       parking,
-      is_featured
+      is_featured,
+      JSON.stringify(imageUrls)
     ]);
 
     res.status(201).json({ message: 'Property added', property: result.rows[0] });
+
   } catch (err) {
     console.error('Property insert error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 
