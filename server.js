@@ -13,6 +13,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
+const { uploadFileToDrive, createFolder } = require('./drive'); // ✅ import มาใช้
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
