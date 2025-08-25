@@ -187,21 +187,10 @@ app.get('/api/properties/:id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Middleware ตรวจ JWT
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.sendStatus(401);
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.user = user;
-    next();
-  });
-}
 
 // POST /api/properties
-app.post('/api/properties', authenticateToken, upload.array('images'), async (req, res) => {
+app.post('/api/properties',  upload.array('images'), async (req, res) => {
   const data = req.body;
   let imageUrls = [];
 
