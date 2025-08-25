@@ -224,7 +224,7 @@ app.put('/api/properties/:id', async (req, res) => {
     const propertyId = req.params.id;
     const data = req.body;
 
-    await pool.query(`
+    const query = `
       UPDATE properties SET
         name=$1,
         price=$2,
@@ -245,7 +245,9 @@ app.put('/api/properties/:id', async (req, res) => {
         furnished=$17,
         parking=$18
       WHERE id=$19
-    `, [
+    `;
+
+    const values = [
       data.name,
       data.price,
       data.location,
@@ -265,7 +267,9 @@ app.put('/api/properties/:id', async (req, res) => {
       data.furnished,
       data.parking,
       propertyId
-    ]);
+    ];
+
+    await pool.query(query, values);
 
     res.json({ success: true, message: "Property updated successfully" });
   } catch (err) {
