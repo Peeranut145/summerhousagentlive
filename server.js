@@ -221,45 +221,36 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
 });
 
 app.put('/api/properties/:id', async (req, res) => {
-  const { id } = req.params;
-  const data = req.body;
-
-  if (!data.name || !data.price || !data.location || !data.contact_info) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
   try {
-    const result = await pool.query(
-  `UPDATE properties SET
-    name=$1, price=$2, location=$3, type=$4, status=$5,
-    description=$6, contact_info=$7, construction_status=$8,
-    bedrooms=$9, bathrooms=$10, is_featured=$11, swimming_pool=$12,
-    building_area=$13, land_area=$14, ownership=$15, floors=$16,
-    furnished=$17, parking=$18, images=$19
-   WHERE id=$20`,
-  [
-    data.name, data.price, data.location, data.type, data.status,
-    data.description, data.contact_info, data.construction_status,
-    data.bedrooms, data.bathrooms, data.is_featured, data.swimming_pool,
-    data.building_area, data.land_area, data.ownership, data.floors,
-    data.furnished, data.parking,
-    images.length > 0 ? `{${images.map(img => `"${img}"`).join(",")}}` : null,  // 🔥 FIX
-    propertyId
-  ]
-);
+    const propertyId = req.params.id;
+    const data = req.body;
 
+    // ✅ ดึง images จาก body หรือถ้าไม่มีให้เป็น []
+    const images = data.images || [];
 
+    await pool.query(`
+      UPDATE properties SET
+        name=$1, price=$2, location=$3, type=$4, status=$5, description=$6,
+        contact_info=$7, construction_status=$8, bedrooms=$9, bathrooms=$10,
+        is_featured=$11, swimming_pool=$12, building_area=$13, land_area=$14,
+        ownership=$15, floors=$16, furnished=$17, parking=$18, images=$19
+      WHERE id=$20
+    `, [
+      data.name, data.price, data.location, data.type, data.status, data.description,
+      data.contact_info, data.construction_status, data.bedrooms, data.bathrooms,
+      data.is_featured, data.swimming_pool, data.building_area, data.land_area,
+      data.ownership, data.floors, data.furnished, data.parking,
+      images.length > 0 ? images : null,  // ✅ ตอนนี้มีค่าแน่นอน
+      propertyId
+    ]);
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Property not found' });
-    }
-
-    res.json({ message: 'Property updated', property: result.rows[0] });
+    res.json({ success: true, message: "Property updated successfully" });
   } catch (err) {
-    console.error('Property update error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Property update error:", err);
+    res.status(500).json({ error: "Failed to update property" });
   }
 });
+
 
 
 
