@@ -229,23 +229,25 @@ app.put('/api/properties/:id', async (req, res) => {
   }
 
   try {
-    const result = await pool.query(`
-      UPDATE properties
-      SET name=$1, price=$2, location=$3, type=$4, status=$5, description=$6,
-          contact_info=$7, construction_status=$8, bedrooms=$9, bathrooms=$10,
-          is_featured=$11, swimming_pool=$12, building_area=$13, land_area=$14,
-          ownership=$15, floors=$16, furnished=$17, parking=$18, images=$19,
-          updated_at=NOW()
-      WHERE property_id=$20
-      RETURNING *;
-    `, [
-      data.name, data.price, data.location, data.type, data.status, data.description,
-      data.contact_info, data.construction_status, data.bedrooms, data.bathrooms,
-      data.is_featured, data.swimming_pool, data.building_area, data.land_area,
-      data.ownership, data.floors, data.furnished, data.parking,
-      data.images ? JSON.stringify(data.images) : null, // ✅ อัปเดตรูปใหม่
-      id
-    ]);
+    const result = await pool.query(
+  `UPDATE properties SET
+    name=$1, price=$2, location=$3, type=$4, status=$5,
+    description=$6, contact_info=$7, construction_status=$8,
+    bedrooms=$9, bathrooms=$10, is_featured=$11, swimming_pool=$12,
+    building_area=$13, land_area=$14, ownership=$15, floors=$16,
+    furnished=$17, parking=$18, images=$19
+   WHERE id=$20`,
+  [
+    data.name, data.price, data.location, data.type, data.status,
+    data.description, data.contact_info, data.construction_status,
+    data.bedrooms, data.bathrooms, data.is_featured, data.swimming_pool,
+    data.building_area, data.land_area, data.ownership, data.floors,
+    data.furnished, data.parking,
+    images.length > 0 ? `{${images.map(img => `"${img}"`).join(",")}}` : null,  // 🔥 FIX
+    propertyId
+  ]
+);
+
 
 
     if (result.rows.length === 0) {
