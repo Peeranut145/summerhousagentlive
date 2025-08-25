@@ -215,22 +215,25 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
   let imageUrls = [];
 
   try {
+    // สร้าง folder ชื่อ property + id ชั่วคราว
+    const folderName = `${data.name}-${Date.now()}`;
+    const folderId = await createFolder(folderName, 'YOUR_PARENT_FOLDER_ID'); // ใส่ folder หลัก
+
     if (req.files && req.files.length > 0) {
-      for (let i = 0; i < req.files.length; i++) {
-        const file = req.files[i];
-        const url = await uploadFileToDrive(file.path, file.originalname, file.mimetype);
+      for (let file of req.files) {
+        const url = await uploadFileToDrive(file.path, file.originalname, file.mimetype, folderId);
         imageUrls.push(url);
       }
     }
 
     const result = await pool.query(`
       INSERT INTO properties
-        (name, price, location, type, status, description, contact_info,
-         construction_status, bedrooms, bathrooms, is_featured,
-         swimming_pool, building_area, land_area, ownership, floors,
-         furnished, parking, images, created_at, updated_at)
+      (name, price, location, type, status, description, contact_info,
+       construction_status, bedrooms, bathrooms, is_featured,
+       swimming_pool, building_area, land_area, ownership, floors,
+       furnished, parking, images, created_at, updated_at)
       VALUES
-        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW(),NOW())
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW(),NOW())
       RETURNING *;
     `, [
       data.name, data.price, data.location, data.type, data.status, data.description,
@@ -246,6 +249,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 app.put('/api/properties/:id', async (req, res) => {
   try {
     const propertyId = req.params.id;
