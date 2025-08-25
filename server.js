@@ -194,28 +194,27 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
   let imageUrls = [];
 
   try {
-    // 📂 สร้างโฟลเดอร์ใน Google Drive
+    // สร้างโฟลเดอร์ใน Shared Drive
     const folderName = `${data.name}-${Date.now()}`;
-    const folderId = await createFolder(folderName, process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID);
+    const folderData = await createFolder(folderName, process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID);
+    const folderId = folderData.id;
 
-    // 📤 อัปโหลดไฟล์ไป Google Drive
+    // อัปโหลดไฟล์ไป Shared Drive
     if (req.files && req.files.length > 0) {
       for (let file of req.files) {
         const url = await uploadFileToDrive(file.path, file.originalname, file.mimetype, folderId);
         imageUrls.push(url);
-
-        // ลบไฟล์ชั่วคราวออกจากเซิร์ฟเวอร์
-        fs.unlinkSync(file.path);
+        // ไม่ต้องลบไฟล์อีก เพราะฟังก์ชัน uploadFileToDrive ลบให้แล้ว
       }
     }
 
-    // 🛠️ แปลงค่าจาก form (string → number/boolean)
+    // แปลงค่าจาก form
     const bedrooms = data.bedrooms ? parseInt(data.bedrooms, 10) : null;
     const bathrooms = data.bathrooms ? parseInt(data.bathrooms, 10) : null;
     const is_featured = data.is_featured === "true";
     const swimming_pool = data.swimming_pool === "true";
 
-    // 💾 บันทึกลง DB
+    // บันทึกลง DB
     const result = await pool.query(`
       INSERT INTO properties
       (name, price, location, type, status, description, contact_info,
@@ -226,34 +225,20 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW(),NOW())
       RETURNING *;
     `, [
-      data.name,
-      data.price,
-      data.location,
-      data.type,
-      data.status,
-      data.description,
-      data.contact_info,
-      data.construction_status,
-      bedrooms,
-      bathrooms,
-      is_featured,
-      swimming_pool,
-      data.building_area,
-      data.land_area,
-      data.ownership,
-      data.floors,
-      data.furnished,
-      data.parking,
-      imageUrls.length > 0 ? JSON.stringify(imageUrls) : null // ✅ เก็บเป็น JSON
+      data.name, data.price, data.location, data.type, data.status, data.description,
+      data.contact_info, data.construction_status, bedrooms, bathrooms,
+      is_featured, swimming_pool, data.building_area, data.land_area, data.ownership,
+      data.floors, data.furnished, data.parking,
+      imageUrls.length > 0 ? JSON.stringify(imageUrls) : null
     ]);
 
-    res.status(201).json({ message: 'Property added', property: result.rows[0] });
+    res.status(201).json({ message:'Property added', property: result.rows[0] });
+
   } catch (err) {
     console.error('Property insert error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error:'Internal server error' });
   }
 });
-
 
 
 app.put('/api/properties/:id', async (req, res) => {
