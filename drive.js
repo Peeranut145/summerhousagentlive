@@ -1,4 +1,3 @@
-// drive.js
 const { google } = require('googleapis');
 const fs = require('fs');
 
@@ -6,7 +5,8 @@ const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
 
 const auth = new google.auth.GoogleAuth({
   credentials,
-  scopes: ['https://www.googleapis.com/auth/drive.file'],
+  scopes: ['https://www.googleapis.com/auth/drive'],
+
 });
 
 async function getDriveService() {
@@ -24,18 +24,21 @@ async function uploadFileToDrive(path, name, mimeType, folderId = null) {
     requestBody: fileMetadata,
     media: { mimeType, body: fs.createReadStream(path) },
     fields: 'id,name',
+    supportsAllDrives: true, // สำคัญ!
   });
 
   await drive.permissions.create({
     fileId: res.data.id,
     requestBody: { role: 'reader', type: 'anyone' },
+    supportsAllDrives: true, // สำคัญ!
   });
 
   fs.unlinkSync(path);
   return `https://drive.google.com/uc?id=${res.data.id}`;
 }
 
-// ✅ ฟังก์ชันสำหรับสร้างโฟลเดอร์
+
+// สร้างโฟลเดอร์ใน Shared Drive
 async function createFolder(name, parentId = null) {
   const drive = await getDriveService();
 
@@ -48,6 +51,7 @@ async function createFolder(name, parentId = null) {
   const res = await drive.files.create({
     requestBody: fileMetadata,
     fields: 'id,name',
+    supportsAllDrives: true, // ✅ เพิ่มบรรทัดนี้
   });
 
   return res.data; // { id, name }
