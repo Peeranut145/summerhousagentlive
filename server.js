@@ -208,16 +208,10 @@ app.post('/api/properties',  upload.array('images'), async (req, res) => {
       }
     }
 
-    // แปลงค่า
-    const price = data.price ? parseFloat(data.price) : null;
-    const bedrooms = data.bedrooms ? parseInt(data.bedrooms, 10) : null;
-    const bathrooms = data.bathrooms ? parseInt(data.bathrooms, 10) : null;
-    const floors = data.floors ? parseInt(data.floors, 10) : null;
-    const parking = data.parking ? parseInt(data.parking, 10) : null;
-    const is_featured = data.is_featured === "true" || data.is_featured === true;
-    const swimming_pool = data.swimming_pool === "true" || data.swimming_pool === true;
-    const user_id = req.user.userId;
-
+    // เช็ค field ที่จำเป็น
+      if (!data.name || !data.price || !data.location || !data.contact_info) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
     // Insert ลง DB
     const result = await pool.query(`
       INSERT INTO properties
