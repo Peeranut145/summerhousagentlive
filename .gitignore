@@ -1,11 +1,7 @@
 # Google Service Account
 service-account.json
 
-# Node modules
-node_modules/
 
-# Environment file
-.env
 
 # Build folders
 dist/
