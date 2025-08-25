@@ -209,7 +209,8 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       data.contact_info, data.construction_status, data.bedrooms, data.bathrooms,
       data.is_featured, data.swimming_pool, data.building_area, data.land_area,
       data.ownership, data.floors, data.furnished, data.parking,
-      images.length > 0 ? JSON.stringify(images) : null
+      images.length > 0 ? images.length > 0 ? images : null,  // 🟢 ส่งเป็น JS array ตรงๆ
+      propertyId
     ]);
 
     res.status(201).json({ message: 'Property added', property: result.rows[0] });
