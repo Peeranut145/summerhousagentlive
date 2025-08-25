@@ -14,8 +14,6 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
 
-const { google } = require('googleapis');
-const fs = require('fs');
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 app.set('trust proxy', 1); // 🟢 บอกให้เชื่อ Proxy (เช่น Render, Heroku)
