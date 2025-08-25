@@ -229,38 +229,37 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       }
     }
 
-    // ✅ Insert ลง DB
-    const result = await pool.query(`
-      INSERT INTO properties
-      (user_id, name, price, location, type, status, description, contact_info,
-       construction_status, bedrooms, bathrooms, is_featured,
-       swimming_pool, building_area, land_area, ownership, floors,
-       furnished, parking, images, created_at, updated_at)
-      VALUES
-      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW(),NOW())
-      RETURNING *;
-    `, [
-      user_id,
-      data.name,
-      price,
-      data.location,
-      data.type || null,
-      data.status || null,
-      data.description || null,
-      data.contact_info,
-      data.construction_status || null,
-      bedrooms,
-      bathrooms,
-      is_featured,
-      swimming_pool,
-      data.building_area || null,
-      data.land_area || null,
-      data.ownership || null,
-      floors,
-      furnished,
-      parking,
-      imageUrls.length > 0 ? JSON.stringify(imageUrls) : null
-    ]);
+   const result = await pool.query(`
+          INSERT INTO properties
+            (user_id, name, price, location, type, status, description, contact_info,
+            construction_status, bedrooms, bathrooms, is_featured,
+            swimming_pool, building_area, land_area, ownership, floors,
+            furnished, parking, images)
+          VALUES
+            ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+          RETURNING *;
+        `, [
+          user_id,
+          data.name,
+          price,
+          data.location,
+          data.type || null,
+          data.status || null,
+          data.description || null,
+          data.contact_info,
+          data.construction_status || null,
+          bedrooms,
+          bathrooms,
+          is_featured,
+          swimming_pool,
+          data.building_area || null,
+          data.land_area || null,
+          data.ownership || null,
+          floors,
+          furnished,
+          parking,
+          imageUrls.length > 0 ? JSON.stringify(imageUrls) : null
+        ]);
 
     res.status(201).json({ message: 'Property added', property: result.rows[0] });
 
