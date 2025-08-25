@@ -1,0 +1,8 @@
+# Google Service Account
+service-account.json
+
+
+
+# Build folders
+dist/
+build/
