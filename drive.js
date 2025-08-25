@@ -2,16 +2,17 @@ const fs = require('fs');
 const { google } = require('googleapis');
 require('dotenv').config();
 
+// สร้าง OAuth2 client
 const oAuth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
   process.env.GOOGLE_REDIRECT_URI
 );
 
-// ใส่ refresh token จากขั้นตอนดึง token
+// ใส่ refresh token
 oAuth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
 
-// สร้าง service drive
+// สร้าง Drive service
 async function getDriveService() {
   return google.drive({ version: 'v3', auth: oAuth2Client });
 }
@@ -19,7 +20,6 @@ async function getDriveService() {
 // upload file
 async function uploadFileToDrive(filePath, fileName, mimeType, folderId = null) {
   const drive = await getDriveService();
-
   const fileMetadata = { name: fileName };
   if (folderId) fileMetadata.parents = [folderId];
 
@@ -29,7 +29,7 @@ async function uploadFileToDrive(filePath, fileName, mimeType, folderId = null) 
     requestBody: fileMetadata,
     media,
     fields: 'id,name',
-    supportsAllDrives: false
+    supportsAllDrives: false // ใช้ Google Drive ปกติ
   });
 
   fs.unlinkSync(filePath); // ลบไฟล์ temp
@@ -51,7 +51,7 @@ async function createFolder(name, parentId = null) {
     supportsAllDrives: false
   });
 
-  return res.data; // {id, name}
+  return res.data;
 }
 
 module.exports = { uploadFileToDrive, createFolder };
