@@ -33,19 +33,3 @@ async function uploadFileToDrive(path, name, mimeType, folderId = null) {
   fs.unlinkSync(path);
   return `https://drive.google.com/uc?id=${res.data.id}`;
 }
-
-async function createFolder(name, parentId = null) {
-  const drive = await getDriveService();
-
-  const fileMetadata = { name, mimeType: 'application/vnd.google-apps.folder' };
-  if (parentId) fileMetadata.parents = [parentId];
-
-  const res = await drive.files.create({
-    requestBody: fileMetadata,
-    fields: 'id'
-  });
-
-  return res.data.id;
-}
-
-module.exports = { uploadFileToDrive, createFolder };
