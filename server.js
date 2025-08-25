@@ -1,9 +1,10 @@
 require('dotenv').config();
 const express = require('express');
-
-const cors = require('cors');
-const path = require('path');
+const fs = require('fs');
+const { google } = require('googleapis');
 const multer = require('multer');
+const path = require('path');
+const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -12,10 +13,11 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
+
 const { google } = require('googleapis');
 const fs = require('fs');
 const app = express();
-
+const upload = multer({ dest: 'uploads/' });
 app.set('trust proxy', 1); // 🟢 บอกให้เชื่อ Proxy (เช่น Render, Heroku)
 const port = process.env.PORT || 5000;
 
@@ -58,7 +60,7 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads')),
   filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
 });
-const upload = multer({ storage });
+
 
 // ---------------------- Nodemailer ----------------------
 const transporter = nodemailer.createTransport({
@@ -210,14 +212,40 @@ app.get('/api/properties/:id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
+// โหลด credential ของ Service Account จาก environment variable
+const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+const auth = new google.auth.GoogleAuth({
+  credentials,
+  scopes: ['https://www.googleapis.com/auth/drive.file'],
+});
+const drive = google.drive({ version: 'v3', auth });
+
+// ฟังก์ชัน upload
+async function uploadFileToDrive(path, name, mimeType) {
+  const res = await drive.files.create({
+    requestBody: { name },
+    media: { mimeType, body: fs.createReadStream(path) },
+    fields: 'id,name',
+  });
+
+  await drive.permissions.create({
+    fileId: res.data.id,
+    requestBody: { role: 'reader', type: 'anyone' },
+  });
+
+  fs.unlinkSync(path); // ลบไฟล์ชั่วคราว
+  return `https://drive.google.com/uc?id=${res.data.id}`;
+}
 app.post('/api/properties', upload.array('images'), async (req, res) => {
   const data = req.body;
   let imageUrls = [];
 
   try {
-    // สร้าง folder ชื่อ property + id ชั่วคราว
     const folderName = `${data.name}-${Date.now()}`;
-    const folderId = await createFolder(folderName, 'YOUR_PARENT_FOLDER_ID'); // ใส่ folder หลัก
+    const folderId = await createFolder(folderName, process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID);
 
     if (req.files && req.files.length > 0) {
       for (let file of req.files) {
@@ -249,6 +277,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 app.put('/api/properties/:id', async (req, res) => {
   try {
