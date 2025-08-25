@@ -190,29 +190,46 @@ app.get('/api/properties/:id', async (req, res) => {
 
 
 // POST /api/properties
-app.post('/api/properties',  upload.array('images'), async (req, res) => {
+app.post('/api/properties', upload.array('images'), async (req, res) => {
   const data = req.body;
   let imageUrls = [];
 
   try {
-    // สร้างโฟลเดอร์ใน Google Drive
+    // ✅ ดึงค่า field จำเป็นและแปลงประเภทให้ถูกต้อง
+    const user_id = parseInt(data.user_id) || 1; // แก้เป็นจาก auth ถ้ามี
+    const price = parseFloat(data.price) || 0;
+    const bedrooms = parseInt(data.bedrooms) || 0;
+    const bathrooms = parseInt(data.bathrooms) || 0;
+    const is_featured = data.is_featured === 'true' || false;
+    const swimming_pool = data.swimming_pool === 'true' || false;
+    const floors = parseInt(data.floors) || 1;
+    const furnished = data.furnished === 'true' || false;
+    const parking = data.parking === 'true' || false;
+
+    // ✅ ตรวจสอบ field จำเป็น
+    if (!data.name || !price || !data.location || !data.contact_info) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // ✅ สร้างโฟลเดอร์ใน Google Drive
     const folderName = `${data.name}-${Date.now()}`;
     const folderData = await createFolder(folderName, process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID);
     const folderId = folderData.id;
 
-    // อัปโหลดรูปไป Google Drive
+    // ✅ อัปโหลดไฟล์แต่ละไฟล์
     if (req.files && req.files.length > 0) {
       for (let file of req.files) {
-        const url = await uploadFileToDrive(file.path, file.originalname, file.mimetype, folderId);
-        imageUrls.push(url);
+        try {
+          const url = await uploadFileToDrive(file.path, file.originalname, file.mimetype, folderId);
+          imageUrls.push(url);
+        } catch (err) {
+          console.error('Upload file error:', err);
+          continue; // ถ้าไฟล์ fail จะไม่หยุดทั้งหมด
+        }
       }
     }
 
-    // เช็ค field ที่จำเป็น
-      if (!data.name || !data.price || !data.location || !data.contact_info) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
-    // Insert ลง DB
+    // ✅ Insert ลง DB
     const result = await pool.query(`
       INSERT INTO properties
       (user_id, name, price, location, type, status, description, contact_info,
@@ -227,31 +244,32 @@ app.post('/api/properties',  upload.array('images'), async (req, res) => {
       data.name,
       price,
       data.location,
-      data.type,
-      data.status,
-      data.description,
+      data.type || null,
+      data.status || null,
+      data.description || null,
       data.contact_info,
-      data.construction_status,
+      data.construction_status || null,
       bedrooms,
       bathrooms,
       is_featured,
       swimming_pool,
-      data.building_area,
-      data.land_area,
-      data.ownership,
+      data.building_area || null,
+      data.land_area || null,
+      data.ownership || null,
       floors,
-      data.furnished,
+      furnished,
       parking,
       imageUrls.length > 0 ? JSON.stringify(imageUrls) : null
     ]);
 
-    res.status(201).json({ message:'Property added', property: result.rows[0] });
+    res.status(201).json({ message: 'Property added', property: result.rows[0] });
 
   } catch (err) {
     console.error('Property insert error:', err);
-    res.status(500).json({ error:'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 
