@@ -13,7 +13,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
-const { uploadFileToDrive, createFolder } = require('./drive'); // ✅ import มาใช้
+const { createFolder, uploadFileToDrive } = require('./drive');
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
@@ -238,21 +238,35 @@ async function uploadFileToDrive(path, name, mimeType) {
   fs.unlinkSync(path); // ลบไฟล์ชั่วคราว
   return `https://drive.google.com/uc?id=${res.data.id}`;
 }
+const fs = require('fs');
+
 app.post('/api/properties', upload.array('images'), async (req, res) => {
   const data = req.body;
   let imageUrls = [];
 
   try {
+    // 📂 สร้างโฟลเดอร์ใน Google Drive
     const folderName = `${data.name}-${Date.now()}`;
     const folderId = await createFolder(folderName, process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID);
 
+    // 📤 อัปโหลดไฟล์ไป Google Drive
     if (req.files && req.files.length > 0) {
       for (let file of req.files) {
         const url = await uploadFileToDrive(file.path, file.originalname, file.mimetype, folderId);
         imageUrls.push(url);
+
+        // ลบไฟล์ชั่วคราวออกจากเซิร์ฟเวอร์
+        fs.unlinkSync(file.path);
       }
     }
 
+    // 🛠️ แปลงค่าจาก form (string → number/boolean)
+    const bedrooms = data.bedrooms ? parseInt(data.bedrooms, 10) : null;
+    const bathrooms = data.bathrooms ? parseInt(data.bathrooms, 10) : null;
+    const is_featured = data.is_featured === "true";
+    const swimming_pool = data.swimming_pool === "true";
+
+    // 💾 บันทึกลง DB
     const result = await pool.query(`
       INSERT INTO properties
       (name, price, location, type, status, description, contact_info,
@@ -263,11 +277,25 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW(),NOW())
       RETURNING *;
     `, [
-      data.name, data.price, data.location, data.type, data.status, data.description,
-      data.contact_info, data.construction_status, data.bedrooms, data.bathrooms,
-      data.is_featured, data.swimming_pool, data.building_area, data.land_area,
-      data.ownership, data.floors, data.furnished, data.parking,
-      imageUrls.length > 0 ? imageUrls : null
+      data.name,
+      data.price,
+      data.location,
+      data.type,
+      data.status,
+      data.description,
+      data.contact_info,
+      data.construction_status,
+      bedrooms,
+      bathrooms,
+      is_featured,
+      swimming_pool,
+      data.building_area,
+      data.land_area,
+      data.ownership,
+      data.floors,
+      data.furnished,
+      data.parking,
+      imageUrls.length > 0 ? JSON.stringify(imageUrls) : null // ✅ เก็บเป็น JSON
     ]);
 
     res.status(201).json({ message: 'Property added', property: result.rows[0] });
@@ -276,6 +304,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 app.put('/api/properties/:id', async (req, res) => {

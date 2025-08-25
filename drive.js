@@ -9,8 +9,24 @@ const auth = new google.auth.GoogleAuth({
 });
 
 async function getDriveService() {
-  const client = await auth.getClient(); // ✅ ต้อง await
+  const client = await auth.getClient();
   return google.drive({ version: 'v3', auth: client });
+}
+
+async function createFolder(folderName, parentId = null) {
+  const drive = await getDriveService();
+  const fileMetadata = {
+    name: folderName,
+    mimeType: 'application/vnd.google-apps.folder',
+  };
+  if (parentId) fileMetadata.parents = [parentId];
+
+  const res = await drive.files.create({
+    requestBody: fileMetadata,
+    fields: 'id',
+  });
+
+  return res.data.id;
 }
 
 async function uploadFileToDrive(path, name, mimeType, folderId = null) {
@@ -33,3 +49,5 @@ async function uploadFileToDrive(path, name, mimeType, folderId = null) {
   fs.unlinkSync(path);
   return `https://drive.google.com/uc?id=${res.data.id}`;
 }
+
+module.exports = { createFolder, uploadFileToDrive };
