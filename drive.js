@@ -2,13 +2,20 @@ const { google } = require('googleapis');
 const fs = require('fs');
 
 const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+
 const auth = new google.auth.GoogleAuth({
   credentials,
   scopes: ['https://www.googleapis.com/auth/drive.file'],
 });
-const drive = google.drive({ version: 'v3', auth });
+
+async function getDriveService() {
+  const client = await auth.getClient(); // ✅ ต้อง await
+  return google.drive({ version: 'v3', auth: client });
+}
 
 async function uploadFileToDrive(path, name, mimeType, folderId = null) {
+  const drive = await getDriveService();
+
   const fileMetadata = { name };
   if (folderId) fileMetadata.parents = [folderId];
 
@@ -28,6 +35,8 @@ async function uploadFileToDrive(path, name, mimeType, folderId = null) {
 }
 
 async function createFolder(name, parentId = null) {
+  const drive = await getDriveService();
+
   const fileMetadata = { name, mimeType: 'application/vnd.google-apps.folder' };
   if (parentId) fileMetadata.parents = [parentId];
 
