@@ -163,66 +163,30 @@ app.post('/api/reset-password-by-token', async (req, res) => {
 });
 
 // ---------------------- Properties ----------------------
-// GET all properties
+
+// GET all
 app.get('/api/properties', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM properties WHERE status=$1 OR status=$2',
-      ['Buy', 'Rent']
-    );
-
-    const properties = result.rows.map(p => {
-      let images = [];
-      if (p.image) {
-        if (p.image.includes(',')) {
-          // แปลง string "id1,id2" เป็น array
-          images = p.image.split(',').map(id => id.trim());
-        } else {
-          images = [p.image];
-        }
-      }
-      // สร้าง URL จาก Google Drive fileId
-      const imageUrls = images.map(id => `https://drive.google.com/uc?export=view&id=${id}`);
-
-      return {
-        ...p,
-        images: imageUrls
-      };
-    });
-
-    res.json(properties);
+    const result = await pool.query('SELECT * FROM properties WHERE status=$1 OR status=$2', ['Buy', 'Rent']);
+    res.json(result.rows);
   } catch (err) {
     console.error('Properties fetch error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// GET property by id
+// GET by id
 app.get('/api/properties/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query('SELECT * FROM properties WHERE property_id=$1', [id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Property not found' });
-
-    const p = result.rows[0];
-
-    let images = [];
-    if (p.image) {
-      if (p.image.includes(',')) {
-        images = p.image.split(',').map(id => id.trim());
-      } else {
-        images = [p.image];
-      }
-    }
-    const imageUrls = images.map(id => `https://drive.google.com/uc?export=view&id=${id}`);
-
-    res.json({ ...p, images: imageUrls });
+    res.json(result.rows[0]);
   } catch (err) {
     console.error('Property fetch error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 
 // POST /api/properties
