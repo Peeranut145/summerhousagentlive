@@ -204,13 +204,13 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       VALUES
         ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW(),NOW())
       RETURNING *;
-    `, [
-      data.name, data.price, data.location, data.type, data.status, data.description,
-      data.contact_info, data.construction_status, data.bedrooms, data.bathrooms,
-      data.is_featured, data.swimming_pool, data.building_area, data.land_area,
-      data.ownership, data.floors, data.furnished, data.parking,
-      images.length > 0 ? images.length > 0 ? images : null,  // 🟢 ส่งเป็น JS array ตรงๆ
-      propertyId
+    `, [   
+          data.name, data.price, data.location, data.type, data.status, data.description,
+          data.contact_info, data.construction_status, data.bedrooms, data.bathrooms,
+          data.is_featured, data.swimming_pool, data.building_area, data.land_area,
+          data.ownership, data.floors, data.furnished, data.parking,
+          images.length > 0 ? images : null,  // ✅ ส่ง array ถ้ามีรูป ไม่งั้น null
+          propertyId
     ]);
 
     res.status(201).json({ message: 'Property added', property: result.rows[0] });
