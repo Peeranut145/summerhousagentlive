@@ -185,8 +185,7 @@ app.get('/api/properties/:id', async (req, res) => {
     console.error('Property fetch error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
-});
-// GET รูปจาก Google Drive ผ่าน fileId
+});// GET รูปจาก Google Drive ผ่าน fileId
 app.get('/api/drive-image/:fileId', async (req, res) => {
   const { fileId } = req.params;
   const auth = new google.auth.GoogleAuth({
@@ -196,18 +195,23 @@ app.get('/api/drive-image/:fileId', async (req, res) => {
   const drive = google.drive({ version: 'v3', auth });
 
   try {
-    const response = await drive.files.get(
+    // ดึง metadata ก่อน เพื่อเช็ค mimeType
+    const fileMeta = await drive.files.get({ fileId, fields: 'mimeType, name' });
+    res.setHeader('Content-Type', fileMeta.data.mimeType || 'image/jpeg');
+
+    // ส่งไฟล์เป็น stream
+    const driveStream = await drive.files.get(
       { fileId, alt: 'media' },
       { responseType: 'stream' }
     );
+    driveStream.data.pipe(res);
 
-    res.setHeader('Content-Type', 'image/jpeg'); // หรือ read จาก response headers
-    response.data.pipe(res);
   } catch (err) {
     console.error('Drive fetch error:', err);
     res.status(500).send('Failed to fetch image');
   }
 });
+
 
 
 
