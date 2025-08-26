@@ -18,6 +18,8 @@ const { createFolder, uploadFileToDrive } = require('./drive');
 const app = express();
 app.set('trust proxy', 1); // 🟢 บอกให้เชื่อ Proxy (เช่น Render, Heroku)
 const port = process.env.PORT || 5000;
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' }); // สำหรับรับไฟล์ temp ก่อนส่งไป Drive
 
 // ---------------------- Database ----------------------
 const pool = new Pool({
@@ -52,11 +54,6 @@ const loginLimiter = rateLimit({
   message: { success: false, message: "Too many login attempts. Try again later." }
 });
 
-// ---------------------- Multer Setup ----------------------
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads')),
-  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
-});
 
 
 // ---------------------- Nodemailer ----------------------
