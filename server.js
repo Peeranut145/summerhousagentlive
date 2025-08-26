@@ -19,7 +19,7 @@ const app = express();
 const upload = multer({ dest: 'uploads/' });
 app.set('trust proxy', 1); // 🟢 บอกให้เชื่อ Proxy (เช่น Render, Heroku)
 const port = process.env.PORT || 5000;
-
+const cloudinary = require('cloudinary').v2;
 // ---------------------- Database ----------------------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -256,6 +256,30 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
         }
       }
     }
+    if (req.files && req.files.length > 0) {
+  for (let file of req.files) {
+    try {
+      // อัปโหลดไป Google Drive
+      const driveUrl = await uploadFileToDrive(file.path, file.originalname, file.mimetype, folderId);
+      
+      // อัปโหลดไป Cloudinary
+      const cloudinaryResult = await cloudinary.uploader.upload(file.path, {
+        folder: folderName,
+        resource_type: "image"
+      });
+
+      // รวม URL ทั้งสองที่
+      imageUrls.push({
+        googleDrive: driveUrl,
+        cloudinary: cloudinaryResult.secure_url
+      });
+
+    } catch (err) {
+      console.error('Upload file error:', err);
+      continue;
+    }
+  }
+}
 
     // Insert โดยใช้ array ของ JS โดยตรง
     const result = await pool.query(`
