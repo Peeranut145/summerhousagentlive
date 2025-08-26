@@ -162,11 +162,19 @@ app.post('/api/reset-password-by-token', async (req, res) => {
 });
 
 // ---------------------- Properties ----------------------
-// GET all
 app.get('/api/properties', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM properties WHERE status=$1 OR status=$2', ['Buy', 'Rent']);
-    // image เป็น text[] อยู่แล้ว ส่งตรงได้
+    const result = await pool.query(`
+      SELECT 
+        property_id, name, price, location, type, status, description,
+        COALESCE(to_json(image), '[]') AS image,  -- ✅ บังคับเป็น JSON array
+        bedrooms, bathrooms, swimming_pool, building_area, land_area,
+        ownership, construction_status, floors, furnished, parking,
+        is_featured, created_at
+      FROM properties
+      WHERE status=$1 OR status=$2
+    `, ['Buy', 'Rent']);
+
     res.json(result.rows);
   } catch (err) {
     console.error('Properties fetch error:', err);
@@ -174,49 +182,25 @@ app.get('/api/properties', async (req, res) => {
   }
 });
 
-// GET by id
 app.get('/api/properties/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query('SELECT * FROM properties WHERE property_id=$1', [id]);
+    const result = await pool.query(`
+      SELECT 
+        property_id, name, price, location, type, status, description,
+        COALESCE(to_json(image), '[]') AS image,
+        bedrooms, bathrooms, swimming_pool, building_area, land_area,
+        ownership, construction_status, floors, furnished, parking,
+        is_featured, created_at
+      FROM properties
+      WHERE property_id=$1
+    `, [id]);
+
     if (result.rows.length === 0) return res.status(404).json({ error: 'Property not found' });
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Property fetch error:', err);
     res.status(500).json({ error: 'Internal server error' });
-  }
-});// GET รูปจาก Google Drive ผ่าน fileId หรือ Google Drive URL
-app.get('/api/drive-image/:fileId', async (req, res) => {
-  let { fileId } = req.params;
-  if (!fileId) return res.status(400).send('Missing fileId');
-
-  // ถ้าเป็น URL ของ Google Drive ให้ extract id
-  const driveIdMatch = fileId.match(/(?:id=)([\w-]+)/);
-  if (driveIdMatch) fileId = driveIdMatch[1];
-
-  const auth = new google.auth.GoogleAuth({
-    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
-    scopes: ['https://www.googleapis.com/auth/drive.readonly']
-  });
-
-  const drive = google.drive({ version: 'v3', auth });
-
-  try {
-    // ดึง metadata ก่อน เพื่อเช็ค mimeType
-    const fileMeta = await drive.files.get({ fileId, fields: 'mimeType, name' });
-    res.setHeader('Content-Type', fileMeta.data.mimeType || 'application/octet-stream');
-
-    // ส่งไฟล์เป็น stream
-    const driveStream = await drive.files.get(
-      { fileId, alt: 'media' },
-      { responseType: 'stream' }
-    );
-
-    driveStream.data.pipe(res);
-
-  } catch (err) {
-    console.error('Drive fetch error:', err);
-    res.status(500).send('Failed to fetch image');
   }
 });
 
