@@ -53,5 +53,21 @@ async function createFolder(name, parentId = null) {
 
   return res.data;
 }
+// ดึงไฟล์จาก Drive (stream) จาก fileId
+async function getFileStream(fileId) {
+  const drive = await getDriveService();
 
-module.exports = { uploadFileToDrive, createFolder };
+  // ดึง metadata เพื่อหา MIME type
+  const meta = await drive.files.get({ fileId, fields: 'mimeType' });
+
+  const response = await drive.files.get(
+    { fileId, alt: 'media' },
+    { responseType: 'stream' }
+  );
+
+  return { stream: response.data, mimeType: meta.data.mimeType };
+}
+
+module.exports = { uploadFileToDrive, createFolder, getFileStream };
+
+

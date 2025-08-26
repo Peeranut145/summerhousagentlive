@@ -14,7 +14,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
 const { createFolder, uploadFileToDrive } = require('./drive');
-
+const { getFileStream } = require('./drive');
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 app.set('trust proxy', 1); // 🟢 บอกให้เชื่อ Proxy (เช่น Render, Heroku)
@@ -204,7 +204,19 @@ app.get('/api/properties/:id', async (req, res) => {
   }
 });
 
+app.get('/api/drive-image/:fileId', async (req, res) => {
+  const { fileId } = req.params;
 
+  try {
+    const { stream, mimeType } = await getFileStream(fileId);
+
+    res.setHeader('Content-Type', mimeType);
+    stream.pipe(res);
+  } catch (err) {
+    console.error('Error fetching image from Drive:', err);
+    res.status(500).json({ error: 'Failed to fetch image' });
+  }
+});
 
 
 // POST /api/properties
