@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const fs = require('fs');
-const { google } = require('googleapis');
 const multer = require('multer');
 const path = require('path');
 const cors = require('cors');
@@ -13,13 +12,10 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
-const { createFolder, uploadFileToDrive } = require('./drive');
-const { getFileStream } = require('./drive');
+
 const app = express();
-const upload = multer({ dest: 'uploads/' });
-app.set('trust proxy', 1); // 🟢 บอกให้เชื่อ Proxy (เช่น Render, Heroku)
 const port = process.env.PORT || 5000;
-const cloudinary = require('cloudinary').v2;
+
 // ---------------------- Database ----------------------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -55,10 +51,19 @@ const loginLimiter = rateLimit({
 
 // ---------------------- Multer Setup ----------------------
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads')),
-  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../frontend/public/uploads');
+    if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath, { recursive: true });
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
 });
+const upload = multer({ storage });
 
+// Serve static uploads
+app.use('/uploads', express.static(path.join(__dirname, '../frontend/public/uploads')));
 
 // ---------------------- Nodemailer ----------------------
 const transporter = nodemailer.createTransport({
@@ -68,8 +73,6 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS
   }
 });
-
- 
 
 // ---------------------- Auth Routes ----------------------
 
@@ -162,19 +165,20 @@ app.post('/api/reset-password-by-token', async (req, res) => {
 });
 
 // ---------------------- Properties ----------------------
+
+// Get all properties
 app.get('/api/properties', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
         property_id, name, price, location, type, status, description,
-        COALESCE(to_json(image), '[]') AS image,  -- ✅ บังคับเป็น JSON array
+        COALESCE(to_json(image), '[]') AS image,
         bedrooms, bathrooms, swimming_pool, building_area, land_area,
         ownership, construction_status, floors, furnished, parking,
         is_featured, created_at
       FROM properties
       WHERE status=$1 OR status=$2
     `, ['Buy', 'Rent']);
-
     res.json(result.rows);
   } catch (err) {
     console.error('Properties fetch error:', err);
@@ -182,6 +186,7 @@ app.get('/api/properties', async (req, res) => {
   }
 });
 
+// Get property by ID
 app.get('/api/properties/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -195,7 +200,6 @@ app.get('/api/properties/:id', async (req, res) => {
       FROM properties
       WHERE property_id=$1
     `, [id]);
-
     if (result.rows.length === 0) return res.status(404).json({ error: 'Property not found' });
     res.json(result.rows[0]);
   } catch (err) {
@@ -204,29 +208,9 @@ app.get('/api/properties/:id', async (req, res) => {
   }
 });
 
-app.get('/api/drive-image/:fileId', async (req, res) => {
-  const { fileId } = req.params;
-  try {
-    const drive = google.drive({ version: 'v3', auth: oAuth2Client });
-    const response = await drive.files.get(
-      { fileId, alt: 'media' },
-      { responseType: 'stream' }
-    );
-
-    res.setHeader('Content-Type', 'image/jpeg'); // หรือ mime type จริงของไฟล์
-    response.data.pipe(res);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Cannot fetch image from Google Drive');
-  }
-});
-
-
-
-// POST /api/properties
 app.post('/api/properties', upload.array('images'), async (req, res) => {
   const data = req.body;
-  let imageUrls = [];
+  let localUrls = [];   // สำหรับเก็บ path ใน frontend
 
   try {
     const user_id = parseInt(data.user_id) || 1;
@@ -239,49 +223,25 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     const furnished = data.furnished === 'true';
     const parking = parseInt(data.parking) || 0;
 
-    // สร้างโฟลเดอร์ใน Google Drive
-    const folderName = `${data.name}-${Date.now()}`;
-    const folderData = await createFolder(folderName, process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID);
-    const folderId = folderData.id;
-
-    // อัปโหลดไฟล์แต่ละไฟล์ขึ้น Google Drive
     if (req.files && req.files.length > 0) {
+      // 1️⃣ เก็บ path สำหรับ frontend
+      localUrls = req.files.map(file => `/uploads/${file.filename}`);
+
+      // 2️⃣ อัปโหลดไฟล์ไป Google Drive (แต่ไม่เอา URL ไป DB)
+      const folderName = `${data.name}-${Date.now()}`;
+      const folderData = await createFolder(folderName, process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID);
+      const folderId = folderData.id;
+
       for (let file of req.files) {
         try {
-          const url = await uploadFileToDrive(file.path, file.originalname, file.mimetype, folderId);
-          imageUrls.push(url);
+          await uploadFileToDrive(file.path, file.originalname, file.mimetype, folderId);
         } catch (err) {
-          console.error('Upload file error:', err);
-          continue;
+          console.error('Drive upload error:', err);
         }
       }
     }
-    if (req.files && req.files.length > 0) {
-  for (let file of req.files) {
-    try {
-      // อัปโหลดไป Google Drive
-      const driveUrl = await uploadFileToDrive(file.path, file.originalname, file.mimetype, folderId);
-      
-      // อัปโหลดไป Cloudinary
-      const cloudinaryResult = await cloudinary.uploader.upload(file.path, {
-        folder: folderName,
-        resource_type: "image"
-      });
 
-      // รวม URL ทั้งสองที่
-      imageUrls.push({
-        googleDrive: driveUrl,
-        cloudinary: cloudinaryResult.secure_url
-      });
-
-    } catch (err) {
-      console.error('Upload file error:', err);
-      continue;
-    }
-  }
-}
-
-    // Insert โดยใช้ array ของ JS โดยตรง
+    // บันทึก property ลง DB → image เก็บเฉพาะ path frontend
     const result = await pool.query(`
       INSERT INTO properties
         (user_id, name, price, location, type, status, description, image,
@@ -299,7 +259,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       data.type || null,
       data.status || null,
       data.description || null,
-      imageUrls.length > 0 ? imageUrls : null, // ✅ ส่ง JS array ตรงๆ
+      localUrls.length > 0 ? localUrls : null,  // ✅ DB เก็บแค่ frontend path
       bedrooms,
       bathrooms,
       swimming_pool,
@@ -322,6 +282,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
 });
 
 
+// Update property
 app.put('/api/properties/:id', async (req, res) => {
   try {
     const propertyId = req.params.id;
@@ -373,14 +334,12 @@ app.put('/api/properties/:id', async (req, res) => {
     ];
 
     await pool.query(query, values);
-
     res.json({ success: true, message: "Property updated successfully" });
   } catch (err) {
     console.error("Property update error:", err);
     res.status(500).json({ error: "Failed to update property" });
   }
 });
-
 
 
 
