@@ -162,11 +162,11 @@ app.post('/api/reset-password-by-token', async (req, res) => {
 });
 
 // ---------------------- Properties ----------------------
-
 // GET all
 app.get('/api/properties', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM properties WHERE status=$1 OR status=$2', ['Buy', 'Rent']);
+    // image เป็น text[] อยู่แล้ว ส่งตรงได้
     res.json(result.rows);
   } catch (err) {
     console.error('Properties fetch error:', err);
@@ -186,6 +186,7 @@ app.get('/api/properties/:id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 // POST /api/properties
