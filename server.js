@@ -186,6 +186,29 @@ app.get('/api/properties/:id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// GET รูปจาก Google Drive ผ่าน fileId
+app.get('/api/drive-image/:fileId', async (req, res) => {
+  const { fileId } = req.params;
+  const auth = new google.auth.GoogleAuth({
+    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT), // service account JSON
+    scopes: ['https://www.googleapis.com/auth/drive.readonly']
+  });
+  const drive = google.drive({ version: 'v3', auth });
+
+  try {
+    const response = await drive.files.get(
+      { fileId, alt: 'media' },
+      { responseType: 'stream' }
+    );
+
+    res.setHeader('Content-Type', 'image/jpeg'); // หรือ read จาก response headers
+    response.data.pipe(res);
+  } catch (err) {
+    console.error('Drive fetch error:', err);
+    res.status(500).send('Failed to fetch image');
+  }
+});
+
 
 
 // POST /api/properties
