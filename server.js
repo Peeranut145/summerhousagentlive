@@ -12,7 +12,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
-
+const { createFolder, uploadFileToDrive } = require('./drive');
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -210,7 +210,8 @@ app.get('/api/properties/:id', async (req, res) => {
 
 app.post('/api/properties', upload.array('images'), async (req, res) => {
   const data = req.body;
-  let localUrls = [];   // สำหรับเก็บ path ใน frontend
+  let imageFilenames = []; // สำหรับเก็บชื่อไฟล์ใน frontend
+  let driveUrls = [];      // สำหรับเก็บ URL จาก Google Drive
 
   try {
     const user_id = parseInt(data.user_id) || 1;
@@ -223,31 +224,36 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     const furnished = data.furnished === 'true';
     const parking = parseInt(data.parking) || 0;
 
+    // สร้างโฟลเดอร์บน Google Drive
+    const folderName = `${data.name}-${Date.now()}`;
+    const folderData = await createFolder(folderName, process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID);
+    const folderId = folderData.id;
+
+    // อัปโหลดไฟล์
     if (req.files && req.files.length > 0) {
-      // 1️⃣ เก็บ path สำหรับ frontend
-      localUrls = req.files.map(file => `/uploads/${file.filename}`);
-
-      // 2️⃣ อัปโหลดไฟล์ไป Google Drive (แต่ไม่เอา URL ไป DB)
-      const folderName = `${data.name}-${Date.now()}`;
-      const folderData = await createFolder(folderName, process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID);
-      const folderId = folderData.id;
-
       for (let file of req.files) {
+        // 1️⃣ copy ไป frontend/public/uploads/
+        const destPath = path.join(__dirname, '../frontend/public/uploads/', file.filename);
+        fs.copyFileSync(file.path, destPath);
+        imageFilenames.push(file.filename);
+
+        // 2️⃣ อัปโหลดไป Google Drive
         try {
-          await uploadFileToDrive(file.path, file.originalname, file.mimetype, folderId);
+          const url = await uploadFileToDrive(file.path, file.originalname, file.mimetype, folderId);
+          driveUrls.push(url);
         } catch (err) {
-          console.error('Drive upload error:', err);
+          console.error('Upload to Drive error:', err);
         }
       }
     }
 
-    // บันทึก property ลง DB → image เก็บเฉพาะ path frontend
+    // insert DB (เก็บแค่ชื่อไฟล์ frontend)
     const result = await pool.query(`
       INSERT INTO properties
         (user_id, name, price, location, type, status, description, image,
-        bedrooms, bathrooms, swimming_pool, building_area, land_area,
-        ownership, construction_status, floors, furnished, parking,
-        is_featured, created_at)
+         bedrooms, bathrooms, swimming_pool, building_area, land_area,
+         ownership, construction_status, floors, furnished, parking,
+         is_featured, created_at)
       VALUES
         ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW())
       RETURNING *;
@@ -259,7 +265,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       data.type || null,
       data.status || null,
       data.description || null,
-      localUrls.length > 0 ? localUrls : null,  // ✅ DB เก็บแค่ frontend path
+      imageFilenames.length > 0 ? imageFilenames : null, // DB เก็บแค่ชื่อไฟล์ frontend
       bedrooms,
       bathrooms,
       swimming_pool,
@@ -273,7 +279,11 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       is_featured
     ]);
 
-    res.status(201).json({ message: 'Property added', property: result.rows[0] });
+    res.status(201).json({ 
+      message: 'Property added', 
+      property: result.rows[0],
+      driveUrls // optional: client จะได้ URL Drive ด้วย
+    });
 
   } catch (err) {
     console.error('Property insert error:', err);
