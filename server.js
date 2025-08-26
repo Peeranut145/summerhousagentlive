@@ -189,7 +189,7 @@ app.get('/api/properties/:id', async (req, res) => {
 app.get('/api/drive-image/:fileId', async (req, res) => {
   const { fileId } = req.params;
   const auth = new google.auth.GoogleAuth({
-    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT), // service account JSON
+    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY), // service account JSON
     scopes: ['https://www.googleapis.com/auth/drive.readonly']
   });
   const drive = google.drive({ version: 'v3', auth });
