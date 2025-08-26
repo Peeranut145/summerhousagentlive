@@ -206,17 +206,21 @@ app.get('/api/properties/:id', async (req, res) => {
 
 app.get('/api/drive-image/:fileId', async (req, res) => {
   const { fileId } = req.params;
-
   try {
-    const { stream, mimeType } = await getFileStream(fileId);
+    const drive = google.drive({ version: 'v3', auth: oAuth2Client });
+    const response = await drive.files.get(
+      { fileId, alt: 'media' },
+      { responseType: 'stream' }
+    );
 
-    res.setHeader('Content-Type', mimeType);
-    stream.pipe(res);
+    res.setHeader('Content-Type', 'image/jpeg'); // หรือ mime type จริงของไฟล์
+    response.data.pipe(res);
   } catch (err) {
-    console.error('Error fetching image from Drive:', err);
-    res.status(500).json({ error: 'Failed to fetch image' });
+    console.error(err);
+    res.status(500).send('Cannot fetch image from Google Drive');
   }
 });
+
 
 
 // POST /api/properties
