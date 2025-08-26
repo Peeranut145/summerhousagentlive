@@ -280,36 +280,6 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-async function uploadFileToDrive(filePath, fileName, mimeType, folderId) {
-  const fileMetadata = {
-    name: fileName,
-    parents: [folderId],
-  };
-  const media = {
-    mimeType: mimeType,
-    body: fs.createReadStream(filePath),
-  };
-
-  const file = await drive.files.create({
-    resource: fileMetadata,
-    media: media,
-    fields: 'id',
-  });
-
-  // ทำให้ไฟล์เป็น public
-  await drive.permissions.create({
-    fileId: file.data.id,
-    requestBody: {
-      role: 'reader',
-      type: 'anyone',
-    },
-  });
-
-  // คืน link สำหรับแสดงผล
-  return `https://drive.google.com/uc?id=${file.data.id}`;
-}
-
-
 
 
 app.put('/api/properties/:id', async (req, res) => {
