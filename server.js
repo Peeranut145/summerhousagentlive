@@ -253,9 +253,9 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
         (user_id, name, price, location, type, status, description, image,
          bedrooms, bathrooms, swimming_pool, building_area, land_area,
          ownership, construction_status, floors, furnished, parking,
-         is_featured, created_at)
+         is_featured,contact_info, created_at)
       VALUES
-        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW())
+        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW())
       RETURNING *;
     `, [
       user_id,
@@ -265,7 +265,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       data.type || null,
       data.status || null,
       data.description || null,
-      imageFilenames.length > 0 ? imageFilenames : null, // DB เก็บแค่ชื่อไฟล์ frontend
+      imageFilenames.length > 0 ? imageFilenames : null,
       bedrooms,
       bathrooms,
       swimming_pool,
@@ -276,13 +276,14 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       floors,
       furnished,
       parking,
-      is_featured
+      is_featured,
+      contact_info
     ]);
 
     res.status(201).json({ 
       message: 'Property added', 
       property: result.rows[0],
-      driveUrls // optional: client จะได้ URL Drive ด้วย
+      driveUrls
     });
 
   } catch (err) {
@@ -290,6 +291,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 // Update property
