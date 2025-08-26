@@ -188,7 +188,6 @@ app.get('/api/properties/:id', async (req, res) => {
 });
 
 
-
 // POST /api/properties
 app.post('/api/properties', upload.array('images'), async (req, res) => {
   const data = req.body;
@@ -205,12 +204,12 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     const furnished = data.furnished === 'true';
     const parking = parseInt(data.parking) || 0;
 
-    // ✅ สร้างโฟลเดอร์ใน Google Drive
+    // สร้างโฟลเดอร์ใน Google Drive
     const folderName = `${data.name}-${Date.now()}`;
     const folderData = await createFolder(folderName, process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID);
     const folderId = folderData.id;
 
-    // ✅ อัปโหลดไฟล์แต่ละไฟล์ขึ้น Google Drive
+    // อัปโหลดไฟล์แต่ละไฟล์ขึ้น Google Drive
     if (req.files && req.files.length > 0) {
       for (let file of req.files) {
         try {
@@ -223,12 +222,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       }
     }
 
-    // ✅ แปลง array เป็น PostgreSQL array literal
-    const pgImageArray = imageUrls.length > 0
-      ? `{${imageUrls.map(url => `"${url}"`).join(',')}}`
-      : null;
-
-    // ✅ Insert ลง database
+    // Insert โดยใช้ array ของ JS โดยตรง
     const result = await pool.query(`
       INSERT INTO properties
         (user_id, name, price, location, type, status, description, image,
@@ -246,7 +240,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       data.type || null,
       data.status || null,
       data.description || null,
-      pgImageArray, // 🟢 ใช้ PostgreSQL array literal
+      imageUrls.length > 0 ? imageUrls : null, // ✅ ส่ง JS array ตรงๆ
       bedrooms,
       bathrooms,
       swimming_pool,
