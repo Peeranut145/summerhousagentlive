@@ -223,6 +223,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     const floors = parseInt(data.floors) || 1;
     const furnished = data.furnished === 'true';
     const parking = parseInt(data.parking) || 0;
+    const contact_info = data.contact_info === 'true';
 
     // สร้างโฟลเดอร์บน Google Drive
     const folderName = `${data.name}-${Date.now()}`;
@@ -277,7 +278,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       furnished,
       parking,
       is_featured,
-      contact_info
+      data.contact_info || null
     ]);
 
     res.status(201).json({ 
