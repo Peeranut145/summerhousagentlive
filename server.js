@@ -13,42 +13,13 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
-const drive = google.drive({ version: 'v3', auth });
+const { createFolder, uploadFileToDrive } = require('./drive');
+
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 app.set('trust proxy', 1); // 🟢 บอกให้เชื่อ Proxy (เช่น Render, Heroku)
 const port = process.env.PORT || 5000;
-//-----------------------------------------------------------//
-async function uploadFileToDrive(filePath, fileName, mimeType, folderId) {
-  const fileMetadata = {
-    name: fileName,
-    parents: [folderId],
-  };
-  const media = {
-    mimeType: mimeType,
-    body: fs.createReadStream(filePath),
-  };
 
-  const file = await drive.files.create({
-    resource: fileMetadata,
-    media: media,
-    fields: 'id',
-  });
-
-  // ให้ public
-  await drive.permissions.create({
-    fileId: file.data.id,
-    requestBody: {
-      role: 'reader',
-      type: 'anyone',
-    },
-  });
-
-  // return public link
-  return `https://drive.google.com/uc?id=${file.data.id}`;
-}
-
-module.exports = { uploadFileToDrive };
 // ---------------------- Database ----------------------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -257,7 +228,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     const folderData = await createFolder(folderName, process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID);
     const folderId = folderData.id;
 
-    // อัปโหลดไฟล์ไป Google Drive
+    // อัปโหลดไฟล์แต่ละไฟล์ขึ้น Google Drive
     if (req.files && req.files.length > 0) {
       for (let file of req.files) {
         try {
@@ -265,11 +236,12 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
           imageUrls.push(url);
         } catch (err) {
           console.error('Upload file error:', err);
+          continue;
         }
       }
     }
 
-    // Insert ลง DB
+    // Insert โดยใช้ array ของ JS โดยตรง
     const result = await pool.query(`
       INSERT INTO properties
         (user_id, name, price, location, type, status, description, image,
@@ -287,7 +259,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       data.type || null,
       data.status || null,
       data.description || null,
-      imageUrls.length > 0 ? imageUrls : null, // ✅ array ของ public link
+      imageUrls.length > 0 ? imageUrls : null, // ✅ ส่ง JS array ตรงๆ
       bedrooms,
       bathrooms,
       swimming_pool,
@@ -301,21 +273,13 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       is_featured
     ]);
 
-    // ✅ ส่ง array URL กลับตรงๆ
-    res.status(201).json({
-      message: 'Property added',
-      property: {
-        ...result.rows[0],
-        image: imageUrls
-      }
-    });
+    res.status(201).json({ message: 'Property added', property: result.rows[0] });
 
   } catch (err) {
     console.error('Property insert error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 async function uploadFileToDrive(filePath, fileName, mimeType, folderId) {
   const fileMetadata = {
     name: fileName,
