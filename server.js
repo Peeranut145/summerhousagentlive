@@ -185,25 +185,33 @@ app.get('/api/properties/:id', async (req, res) => {
     console.error('Property fetch error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
-});// GET รูปจาก Google Drive ผ่าน fileId
+});// GET รูปจาก Google Drive ผ่าน fileId หรือ Google Drive URL
 app.get('/api/drive-image/:fileId', async (req, res) => {
-  const { fileId } = req.params;
+  let { fileId } = req.params;
+  if (!fileId) return res.status(400).send('Missing fileId');
+
+  // ถ้าเป็น URL ของ Google Drive ให้ extract id
+  const driveIdMatch = fileId.match(/(?:id=)([\w-]+)/);
+  if (driveIdMatch) fileId = driveIdMatch[1];
+
   const auth = new google.auth.GoogleAuth({
-    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY), // service account JSON
+    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
     scopes: ['https://www.googleapis.com/auth/drive.readonly']
   });
+
   const drive = google.drive({ version: 'v3', auth });
 
   try {
     // ดึง metadata ก่อน เพื่อเช็ค mimeType
     const fileMeta = await drive.files.get({ fileId, fields: 'mimeType, name' });
-    res.setHeader('Content-Type', fileMeta.data.mimeType || 'image/jpeg');
+    res.setHeader('Content-Type', fileMeta.data.mimeType || 'application/octet-stream');
 
     // ส่งไฟล์เป็น stream
     const driveStream = await drive.files.get(
       { fileId, alt: 'media' },
       { responseType: 'stream' }
     );
+
     driveStream.data.pipe(res);
 
   } catch (err) {
