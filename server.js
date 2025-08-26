@@ -16,7 +16,6 @@ const { Pool } = require('pg');
 const { createFolder, uploadFileToDrive } = require('./drive');
 
 const app = express();
-const upload = multer({ dest: 'uploads/' });
 app.set('trust proxy', 1); // 🟢 บอกให้เชื่อ Proxy (เช่น Render, Heroku)
 const port = process.env.PORT || 5000;
 
@@ -166,8 +165,11 @@ app.post('/api/reset-password-by-token', async (req, res) => {
 // GET all
 app.get('/api/properties', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM properties WHERE status=$1 OR status=$2', ['Buy', 'Rent']);
-    res.json(result.rows);
+   const formatted = result.rows.map(p => ({
+  ...p,
+      images: p.image ? JSON.parse(`[${p.image}]`) : [] // ถ้าเก็บเป็น JSON array แล้วก็ใช้ JSON.parse(p.image)
+    }));
+    res.json(formatted);
   } catch (err) {
     console.error('Properties fetch error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -240,7 +242,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       data.type || null,
       data.status || null,
       data.description || null,
-      imageUrls.length > 0 ? imageUrls.join(',') : null, // 🟢 ใช้ Google Drive URLs
+      imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
       bedrooms,
       bathrooms,
       swimming_pool,
