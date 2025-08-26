@@ -223,7 +223,12 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       }
     }
 
-    // ✅ ใช้ Google Drive URLs แทน local path
+    // ✅ แปลง array เป็น PostgreSQL array literal
+    const pgImageArray = imageUrls.length > 0
+      ? `{${imageUrls.map(url => `"${url}"`).join(',')}}`
+      : null;
+
+    // ✅ Insert ลง database
     const result = await pool.query(`
       INSERT INTO properties
         (user_id, name, price, location, type, status, description, image,
@@ -241,7 +246,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       data.type || null,
       data.status || null,
       data.description || null,
-      imageUrls.length > 0 ? imageUrls.join(',') : null, // 🟢 ใช้ Google Drive URLs
+      pgImageArray, // 🟢 ใช้ PostgreSQL array literal
       bedrooms,
       bathrooms,
       swimming_pool,
