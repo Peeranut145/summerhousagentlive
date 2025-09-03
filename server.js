@@ -210,8 +210,7 @@ app.get('/api/properties/:id', async (req, res) => {
 
 app.post('/api/properties', upload.array('images'), async (req, res) => {
   const data = req.body;
-  let imageFilenames = []; // สำหรับเก็บชื่อไฟล์ใน frontend
-  let driveUrls = [];      // สำหรับเก็บ URL จาก Google Drive
+  let imageFilenames = []; // เก็บชื่อไฟล์ที่จะส่งไป frontend
 
   try {
     const user_id = parseInt(data.user_id) || 1;
@@ -223,75 +222,65 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     const floors = parseInt(data.floors) || 1;
     const furnished = data.furnished === 'true';
     const parking = parseInt(data.parking) || 0;
-    const contact_info = data.contact_info === 'true';
+    const contact_info = data.contact_info || null;
 
-    // สร้างโฟลเดอร์บน Google Drive
-    const folderName = `${data.name}-${Date.now()}`;
-    const folderData = await createFolder(folderName, process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID);
-    const folderId = folderData.id;
+    // ✅ สร้างโฟลเดอร์ uploads ถ้าไม่มี
+    const uploadsDir = path.join(__dirname, '../frontend/public/uploads/');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
 
-    // อัปโหลดไฟล์
+    // ✅ ย้ายไฟล์จาก multer ไปไว้ใน public/uploads
     if (req.files && req.files.length > 0) {
       for (let file of req.files) {
-        // 1️⃣ copy ไป frontend/public/uploads/
-        const destPath = path.join(__dirname, '../frontend/public/uploads/', file.filename);
-        fs.copyFileSync(file.path, destPath);
-        imageFilenames.push(file.filename);
-
-        // 2️⃣ อัปโหลดไป Google Drive
-        try {
-          const url = await uploadFileToDrive(file.path, file.originalname, file.mimetype, folderId);
-          driveUrls.push(url);
-        } catch (err) {
-          console.error('Upload to Drive error:', err);
-        }
+        const destPath = path.join(uploadsDir, file.originalname);
+        fs.renameSync(file.path, destPath); // ย้ายไฟล์แทน copy
+        imageFilenames.push(file.originalname); // เก็บชื่อไฟล์
       }
     }
 
-  // insert DB (เก็บทั้ง local filename + drive urls เป็น JSON)
-const result = await pool.query(`
-  INSERT INTO properties
-    (user_id, name, price, location, type, status, description, image,
-     drive_urls, bedrooms, bathrooms, swimming_pool, building_area, land_area,
-     ownership, construction_status, floors, furnished, parking,
-     is_featured, contact_info, created_at)
-  VALUES
-    ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW())
-  RETURNING *;
-`, [
-  user_id,
-  data.name,
-  price,
-  data.location,
-  data.type || null,
-  data.status || null,
-  data.description || null,
-  imageFilenames.length > 0 ? JSON.stringify(imageFilenames) : null,
-  driveUrls.length > 0 ? JSON.stringify(driveUrls) : null,
-  bedrooms,
-  bathrooms,
-  swimming_pool,
-  data.building_area ? parseFloat(data.building_area) : null,
-  data.land_area ? parseFloat(data.land_area) : null,
-  data.ownership || null,
-  data.construction_status || null,
-  floors,
-  furnished,
-  parking,
-  is_featured,
-  data.contact_info || null
-]);
+    // ✅ บันทึก DB
+    const result = await pool.query(`
+      INSERT INTO properties
+        (user_id, name, price, location, type, status, description, image,
+         bedrooms, bathrooms, swimming_pool, building_area, land_area,
+         ownership, construction_status, floors, furnished, parking,
+         is_featured, contact_info, created_at)
+      VALUES
+        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW())
+      RETURNING *;
+    `, [
+      user_id,
+      data.name,
+      price,
+      data.location,
+      data.type || null,
+      data.status || null,
+      data.description || null,
+      imageFilenames.length > 0 ? JSON.stringify(imageFilenames) : null,
+      bedrooms,
+      bathrooms,
+      swimming_pool,
+      data.building_area ? parseFloat(data.building_area) : null,
+      data.land_area ? parseFloat(data.land_area) : null,
+      data.ownership || null,
+      data.construction_status || null,
+      floors,
+      furnished,
+      parking,
+      is_featured,
+      contact_info
+    ]);
 
-
-    res.status(201).json({ 
-      message: 'Property added', 
+    res.status(201).json({
+      message: 'Property added',
       property: result.rows[0],
-      driveUrls
+      images: imageFilenames.map(name => `/uploads/${name}`) // ส่ง path ไว้ใช้ใน frontend
     });
 
   } catch (err) {
     console.error('Property insert error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
 
