@@ -15,7 +15,7 @@ const { Pool } = require('pg');
 const { createFolder, uploadFileToDrive } = require('./drive');
 const app = express();
 const port = process.env.PORT || 5000;
-
+const cloudinary = require('cloudinary').v2;
 // ---------------------- Database ----------------------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -48,6 +48,27 @@ const loginLimiter = rateLimit({
   max: 10,
   message: { success: false, message: "Too many login attempts. Try again later." }
 });
+
+//----------------------------------------------------
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+async function uploadToCloudinary(filePath, folder = "properties") {
+  try {
+    const result = await cloudinary.uploader.upload(filePath, {
+      folder: folder,   // เก็บในโฟลเดอร์ properties
+      resource_type: "image"
+    });
+    return result.secure_url; // เอา URL ไปเก็บใน DB
+  } catch (err) {
+    console.error("Cloudinary upload error:", err);
+    throw err;
+  }
+}
+
+module.exports = { uploadToCloudinary };
 
 // ---------------------- Multer Setup ----------------------
 const storage = multer.diskStorage({
@@ -210,7 +231,7 @@ app.get('/api/properties/:id', async (req, res) => {
 
 app.post('/api/properties', upload.array('images'), async (req, res) => {
   const data = req.body;
-  let imageFilenames = []; // เก็บชื่อไฟล์ที่จะส่งไป frontend
+  let cloudinaryUrls = [];    // เก็บ URL จาก Cloudinary
 
   try {
     const user_id = parseInt(data.user_id) || 1;
@@ -224,30 +245,27 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     const parking = parseInt(data.parking) || 0;
     const contact_info = data.contact_info || null;
 
-    // ✅ สร้างโฟลเดอร์ uploads ถ้าไม่มี
-    const uploadsDir = path.join(__dirname, '../frontend/public/uploads/');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    // ✅ ย้ายไฟล์จาก multer ไปไว้ใน public/uploads
+    // ✅ อัปโหลดไฟล์ขึ้น Cloudinary
     if (req.files && req.files.length > 0) {
       for (let file of req.files) {
-        const destPath = path.join(uploadsDir, file.originalname);
-        fs.renameSync(file.path, destPath); // ย้ายไฟล์แทน copy
-        imageFilenames.push(file.originalname); // เก็บชื่อไฟล์
+        try {
+          const url = await uploadToCloudinary(file.path, "properties");
+          cloudinaryUrls.push(url);
+        } catch (err) {
+          console.error("Cloudinary upload error:", err);
+        }
       }
     }
 
-    // ✅ บันทึก DB
+    // ✅ บันทึก DB (เก็บแค่ cloudinary_urls)
     const result = await pool.query(`
       INSERT INTO properties
         (user_id, name, price, location, type, status, description, image,
          bedrooms, bathrooms, swimming_pool, building_area, land_area,
          ownership, construction_status, floors, furnished, parking,
-         is_featured, contact_info, created_at)
+         is_featured, contact_info, cloudinary_urls, created_at)
       VALUES
-        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW())
+        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW())
       RETURNING *;
     `, [
       user_id,
@@ -257,7 +275,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       data.type || null,
       data.status || null,
       data.description || null,
-      imageFilenames.length > 0 ? JSON.stringify(imageFilenames) : null,
+      null, // image ไม่ใช้แล้ว
       bedrooms,
       bathrooms,
       swimming_pool,
@@ -269,13 +287,14 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       furnished,
       parking,
       is_featured,
-      contact_info
+      contact_info,
+      cloudinaryUrls.length > 0 ? JSON.stringify(cloudinaryUrls) : null
     ]);
 
     res.status(201).json({
       message: 'Property added',
       property: result.rows[0],
-      images: imageFilenames.map(name => `/uploads/${name}`) // ส่ง path ไว้ใช้ใน frontend
+      cloudinaryUrls
     });
 
   } catch (err) {
@@ -283,8 +302,6 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
-
-
 
 // Update property
 app.put('/api/properties/:id', async (req, res) => {
