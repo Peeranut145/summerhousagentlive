@@ -248,38 +248,40 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       }
     }
 
-    // insert DB (เก็บแค่ชื่อไฟล์ frontend)
-    const result = await pool.query(`
-      INSERT INTO properties
-        (user_id, name, price, location, type, status, description, image,
-         bedrooms, bathrooms, swimming_pool, building_area, land_area,
-         ownership, construction_status, floors, furnished, parking,
-         is_featured,contact_info, created_at)
-      VALUES
-        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW())
-      RETURNING *;
-    `, [
-      user_id,
-      data.name,
-      price,
-      data.location,
-      data.type || null,
-      data.status || null,
-      data.description || null,
-      imageFilenames.length > 0 ? imageFilenames : null,
-      bedrooms,
-      bathrooms,
-      swimming_pool,
-      data.building_area ? parseFloat(data.building_area) : null,
-      data.land_area ? parseFloat(data.land_area) : null,
-      data.ownership || null,
-      data.construction_status || null,
-      floors,
-      furnished,
-      parking,
-      is_featured,
-      data.contact_info || null
-    ]);
+  // insert DB (เก็บทั้ง local filename + drive urls เป็น JSON)
+const result = await pool.query(`
+  INSERT INTO properties
+    (user_id, name, price, location, type, status, description, image,
+     drive_urls, bedrooms, bathrooms, swimming_pool, building_area, land_area,
+     ownership, construction_status, floors, furnished, parking,
+     is_featured, contact_info, created_at)
+  VALUES
+    ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW())
+  RETURNING *;
+`, [
+  user_id,
+  data.name,
+  price,
+  data.location,
+  data.type || null,
+  data.status || null,
+  data.description || null,
+  imageFilenames.length > 0 ? JSON.stringify(imageFilenames) : null,
+  driveUrls.length > 0 ? JSON.stringify(driveUrls) : null,
+  bedrooms,
+  bathrooms,
+  swimming_pool,
+  data.building_area ? parseFloat(data.building_area) : null,
+  data.land_area ? parseFloat(data.land_area) : null,
+  data.ownership || null,
+  data.construction_status || null,
+  floors,
+  furnished,
+  parking,
+  is_featured,
+  data.contact_info || null
+]);
+
 
     res.status(201).json({ 
       message: 'Property added', 
