@@ -192,13 +192,14 @@ app.get('/api/properties', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
-        property_id, name, price, location, type, status, description,
-        images,  -- เอา array ของ PostgreSQL ตรง ๆ
+    property_id, name, price, location, type, status, description,
+    images,
         bedrooms, bathrooms, swimming_pool, building_area, land_area,
         ownership, construction_status, floors, furnished, parking,
-        is_featured, created_at
-      FROM properties
-      WHERE status=$1 OR status=$2
+        is_featured, created_at, contact_info
+    FROM properties
+    WHERE status=$1 OR status=$2
+
     `, ['Buy', 'Rent']);
     res.json(result.rows);  // images จะเป็น array ของ JS เลย
   } catch (err) {
