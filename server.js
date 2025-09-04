@@ -308,12 +308,33 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
   }
 });
 
-
-// Update property
-app.put('/api/properties/:id', async (req, res) => {
+// Update property with images
+app.put('/api/properties/:id', upload.array('images'), async (req, res) => {
   try {
     const propertyId = req.params.id;
     const data = req.body;
+    let cloudinaryUrls = []; // เก็บ URL จาก Cloudinary
+
+    // อัปโหลดรูปใหม่ถ้ามี
+    if (req.files && req.files.length > 0) {
+      for (let file of req.files) {
+        try {
+          const url = await uploadToCloudinary(file.path, "properties");
+          cloudinaryUrls.push(url);
+        } catch (err) {
+          console.error("Cloudinary upload error:", err);
+        }
+      }
+    }
+
+    // ถ้าไม่มีรูปใหม่ ให้ใช้รูปเดิมจาก DB (หรือ null)
+    const existingProperty = await pool.query(
+      "SELECT images FROM properties WHERE property_id=$1",
+      [propertyId]
+    );
+    if (cloudinaryUrls.length === 0 && existingProperty.rows.length > 0) {
+      cloudinaryUrls = existingProperty.rows[0].images;
+    }
 
     const query = `
       UPDATE properties SET
@@ -323,51 +344,60 @@ app.put('/api/properties/:id', async (req, res) => {
         type=$4,
         status=$5,
         description=$6,
-        contact_info=$7,
-        construction_status=$8,
-        bedrooms=$9,
-        bathrooms=$10,
-        is_featured=$11,
-        swimming_pool=$12,
-        building_area=$13,
-        land_area=$14,
-        ownership=$15,
-        floors=$16,
-        furnished=$17,
-        parking=$18
-      WHERE property_id=$19
+        images=$7,
+        contact_info=$8,
+        construction_status=$9,
+        bedrooms=$10,
+        bathrooms=$11,
+        is_featured=$12,
+        swimming_pool=$13,
+        building_area=$14,
+        land_area=$15,
+        ownership=$16,
+        floors=$17,
+        furnished=$18,
+        parking=$19
+      WHERE property_id=$20
+      RETURNING *;
     `;
 
     const values = [
       data.name,
-      data.price,
+      parseFloat(data.price) || 0,
       data.location,
-      data.type,
-      data.status,
-      data.description,
-      data.contact_info,
-      data.construction_status,
-      data.bedrooms,
-      data.bathrooms,
-      data.is_featured,
-      data.swimming_pool,
-      data.building_area,
-      data.land_area,
-      data.ownership,
-      data.floors,
-      data.furnished,
-      data.parking,
+      data.type || null,
+      data.status || null,
+      data.description || null,
+      cloudinaryUrls.length > 0 ? cloudinaryUrls : null, // array
+      data.contact_info || null,
+      data.construction_status || null,
+      parseInt(data.bedrooms) || 0,
+      parseInt(data.bathrooms) || 0,
+      data.is_featured === 'true',
+      data.swimming_pool === 'true',
+      data.building_area ? parseFloat(data.building_area) : null,
+      data.land_area ? parseFloat(data.land_area) : null,
+      data.ownership || null,
+      parseInt(data.floors) || 1,
+      data.furnished === 'true',
+      parseInt(data.parking) || 0,
       propertyId
     ];
 
-    await pool.query(query, values);
-    res.json({ success: true, message: "Property updated successfully" });
+    const result = await pool.query(query, values);
+
+    res.json({
+      success: true,
+      message: "Property updated successfully",
+      property: result.rows[0],
+      images: cloudinaryUrls
+    });
+
   } catch (err) {
     console.error("Property update error:", err);
-    res.status(500).json({ error: "Failed to update property" });
+    res.status(500).json({ error: "Failed to update property", details: err.message });
   }
 });
-
 
 
 
