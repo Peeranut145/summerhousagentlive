@@ -209,28 +209,31 @@ app.get('/api/properties', async (req, res) => {
 
 
 
-// Get property by ID
 app.get('/api/properties/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query(`
       SELECT 
         property_id, name, price, location, type, status, description,
--       COALESCE(array_to_json(image), '[]') AS image,
-+       COALESCE(array_to_json(images), '[]') AS images,
+        COALESCE(images, '{}') AS images,  -- เอา images text[] อย่างเดียว
         bedrooms, bathrooms, swimming_pool, building_area, land_area,
         ownership, construction_status, floors, furnished, parking,
-        is_featured, created_at
+        is_featured, created_at, contact_info
       FROM properties
-      WHERE property_id=$1
+      WHERE property_id = $1
     `, [id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Property not found' });
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Property fetch error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 app.post('/api/properties', upload.array('images'), async (req, res) => {
   const data = req.body;
