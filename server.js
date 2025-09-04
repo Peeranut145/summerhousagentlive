@@ -288,13 +288,17 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     // บันทึกลง DB (images[] type text)
     const result = await pool.query(`
       INSERT INTO properties
-        (user_id, name, price, location, type, status, description, images,
-         bedrooms, bathrooms, swimming_pool, building_area, land_area,
-         ownership, construction_status, floors, furnished, parking,
-         is_featured, contact_info, created_at)
+          (user_id, name, price, location, type, status, description, images,
+          bedrooms, bathrooms, swimming_pool, building_area, land_area,
+          ownership, construction_status, floors, furnished, parking,
+          is_featured, contact_info, created_at)
       VALUES
-        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW())
+          ($1, $2, $3, $4, $5, $6, $7, $8,
+          $9, $10, $11, $12, $13,
+          $14, $15, $16, $17, $18,
+          $19, $20, NOW())
       RETURNING *;
+
     `, [
       user_id,
       data.name,
@@ -368,12 +372,30 @@ app.put('/api/properties/:id', upload.array('images'), async (req, res) => {
     // 3. อัปเดตฟิลด์อื่น ๆ
     await pool.query(
       `UPDATE properties SET
-        name=$1, price=$2, location=$3, type=$4, status=$5,
-        description=$6, contact_info=$7, bedrooms=$8, bathrooms=$9,
-        swimming_pool=$10, building_area=$11, land_area=$12, ownership=$13,
-        construction_status=$14, floors=$15, furnished=$16, parking=$17,
-        is_featured=$18
-      WHERE property_id=$19`,
+          user_id = $1,
+          name = $2,
+          price = $3,
+          location = $4,
+          type = $5,
+          status = $6,
+          description = $7,
+          images = $8,
+          bedrooms = $9,
+          bathrooms = $10,
+          swimming_pool = $11,
+          building_area = $12,
+          land_area = $13,
+          ownership = $14,
+          construction_status = $15,
+          floors = $16,
+          furnished = $17,
+          parking = $18,
+          is_featured = $19,
+          contact_info = $20,
+          updated_at = NOW()
+      WHERE property_id = $21
+      RETURNING *;
+      `,
       [
         name, price, location, type, status, description, contact_info,
         bedrooms, bathrooms, swimming_pool, building_area, land_area, ownership,
