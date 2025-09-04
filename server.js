@@ -213,32 +213,33 @@ app.get('/api/properties/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query(`
-      SELECT
-            property_id,
-            name,
-            price,
-            location,
-            type,
-            status,
-            description,
-            COALESCE(images, ARRAY[]::text[]) AS images,
-            bedrooms,
-            bathrooms,
-            swimming_pool,
-            building_area,
-            land_area,
-            ownership,
-            construction_status AS "constructionStatus",
-            floors,
-            furnished,
-            parking,
-            is_featured AS "isFeatured",
-            created_at AS "createdAt",
-            updated_at AS "updatedAt",
-            user_id AS "userId",
-            contact_info AS "contactInfo"
-          FROM properties
-          WHERE property_id = $1;
+      SELECT 
+          property_id AS "propertyId",
+          name,
+          price,
+          location,
+          type,
+          status,
+          description,
+          COALESCE(images, ARRAY[]::text[]) AS images,
+          bedrooms,
+          bathrooms,
+          swimming_pool AS "swimmingPool",
+          building_area AS "buildingArea",
+          land_area AS "landArea",
+          ownership,
+          construction_status AS "constructionStatus",
+          floors,
+          furnished,
+          parking,
+          is_featured AS "isFeatured",
+          created_at AS "createdAt",
+          updated_at AS "updatedAt",
+          user_id AS "userId",
+          contact_info AS "contactInfo"
+        FROM properties
+        WHERE property_id = $1;
+
 
     `, [id]);
 
