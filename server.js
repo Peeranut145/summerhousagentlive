@@ -228,10 +228,9 @@ app.get('/api/properties/:id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 app.post('/api/properties', upload.array('images'), async (req, res) => {
   const data = req.body;
-  let cloudinaryUrls = [];    // เก็บ URL จาก Cloudinary
+  let cloudinaryUrls = []; // เก็บ URL จาก Cloudinary
 
   try {
     const user_id = parseInt(data.user_id) || 1;
@@ -245,7 +244,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     const parking = parseInt(data.parking) || 0;
     const contact_info = data.contact_info || null;
 
-    // ✅ อัปโหลดไฟล์ขึ้น Cloudinary
+    // อัปโหลดขึ้น Cloudinary
     if (req.files && req.files.length > 0) {
       for (let file of req.files) {
         try {
@@ -257,15 +256,15 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       }
     }
 
-    // ✅ บันทึก DB (เก็บแค่ cloudinary_urls)
+    // บันทึกลง DB (images[] type text)
     const result = await pool.query(`
       INSERT INTO properties
-        (user_id, name, price, location, type, status, description, image,
+        (user_id, name, price, location, type, status, description, images,
          bedrooms, bathrooms, swimming_pool, building_area, land_area,
          ownership, construction_status, floors, furnished, parking,
-         is_featured, contact_info, cloudinary_urls, created_at)
+         is_featured, contact_info, created_at)
       VALUES
-        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW())
+        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW())
       RETURNING *;
     `, [
       user_id,
@@ -275,7 +274,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       data.type || null,
       data.status || null,
       data.description || null,
-      null, // image ไม่ใช้แล้ว
+      cloudinaryUrls.length > 0 ? cloudinaryUrls : null, // 👈 ส่งเป็น array ตรง ๆ
       bedrooms,
       bathrooms,
       swimming_pool,
@@ -287,14 +286,13 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       furnished,
       parking,
       is_featured,
-      contact_info,
-      cloudinaryUrls.length > 0 ? JSON.stringify(cloudinaryUrls) : null
+      contact_info
     ]);
 
     res.status(201).json({
       message: 'Property added',
       property: result.rows[0],
-      cloudinaryUrls
+      images: cloudinaryUrls // ส่ง URL กลับ frontend
     });
 
   } catch (err) {
@@ -302,6 +300,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
+
 
 // Update property
 app.put('/api/properties/:id', async (req, res) => {
