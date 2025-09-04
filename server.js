@@ -186,26 +186,28 @@ app.post('/api/reset-password-by-token', async (req, res) => {
 });
 
 // ---------------------- Properties ----------------------
-
+// Get all properties
 // Get all properties
 app.get('/api/properties', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
         property_id, name, price, location, type, status, description,
-        COALESCE(to_json(image), '[]') AS image,
+        images,  -- เอา array ของ PostgreSQL ตรง ๆ
         bedrooms, bathrooms, swimming_pool, building_area, land_area,
         ownership, construction_status, floors, furnished, parking,
         is_featured, created_at
       FROM properties
       WHERE status=$1 OR status=$2
     `, ['Buy', 'Rent']);
-    res.json(result.rows);
+    res.json(result.rows);  // images จะเป็น array ของ JS เลย
   } catch (err) {
     console.error('Properties fetch error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 
 // Get property by ID
 app.get('/api/properties/:id', async (req, res) => {
@@ -214,7 +216,8 @@ app.get('/api/properties/:id', async (req, res) => {
     const result = await pool.query(`
       SELECT 
         property_id, name, price, location, type, status, description,
-        COALESCE(to_json(image), '[]') AS image,
+-       COALESCE(array_to_json(image), '[]') AS image,
++       COALESCE(array_to_json(images), '[]') AS images,
         bedrooms, bathrooms, swimming_pool, building_area, land_area,
         ownership, construction_status, floors, furnished, parking,
         is_featured, created_at
@@ -228,6 +231,7 @@ app.get('/api/properties/:id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 app.post('/api/properties', upload.array('images'), async (req, res) => {
   const data = req.body;
   let cloudinaryUrls = []; // เก็บ URL จาก Cloudinary
