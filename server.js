@@ -346,70 +346,70 @@ app.put('/api/properties/:id', upload.array('images'), async (req, res) => {
   } = req.body;
 
   try {
-    // 1. ลบรูปเก่าที่เลือก
+    // 1. ดึงรูปเดิมจาก DB
+    const result = await pool.query(
+      'SELECT images FROM properties WHERE property_id=$1',
+      [id]
+    );
+    let currentImages = result.rows[0]?.images || [];
+
+    // 2. ลบรูปที่เลือก
     if (removedImages) {
       const removed = JSON.parse(removedImages);
-      for (const img of removed) {
-        await pool.query(
-          `UPDATE properties SET images = array_remove(images, $1) WHERE property_id = $2`,
-          [img, id]
-        );
-      }
+      currentImages = currentImages.filter(img => !removed.includes(img));
     }
 
-    // 2. เพิ่มรูปใหม่
-    let newImageUrls = [];
+    // 3. เพิ่มรูปใหม่
     if (req.files && req.files.length > 0) {
-      // สมมติ upload ขึ้น Cloudinary / Server แล้วได้ URL
-      // ตัวอย่างนี้เอาชื่อไฟล์ไปเป็น URL จำลอง
-      newImageUrls = req.files.map(file => `/uploads/${file.filename}`);
-      await pool.query(
-        `UPDATE properties SET images = images || $1 WHERE property_id = $2`,
-        [newImageUrls, id]
-      );
+      const newImageUrls = req.files.map(file => `/uploads/${file.filename}`);
+      currentImages = [...currentImages, ...newImageUrls];
     }
 
-    // 3. อัปเดตฟิลด์อื่น ๆ
-    await pool.query(
-      `UPDATE properties SET
-          user_id = $1,
-          name = $2,
-          price = $3,
-          location = $4,
-          type = $5,
-          status = $6,
-          description = $7,
-          images = $8,
-          bedrooms = $9,
-          bathrooms = $10,
-          swimming_pool = $11,
-          building_area = $12,
-          land_area = $13,
-          ownership = $14,
-          construction_status = $15,
-          floors = $16,
-          furnished = $17,
-          parking = $18,
-          is_featured = $19,
-          contact_info = $20,
-          updated_at = NOW()
-      WHERE property_id = $21
+    // 4. อัปเดตฟิลด์ทั้งหมด
+    const updateQuery = `
+      UPDATE properties SET
+        name=$1,
+        price=$2,
+        location=$3,
+        type=$4,
+        status=$5,
+        description=$6,
+        contact_info=$7,
+        images=$8,
+        bedrooms=$9,
+        bathrooms=$10,
+        swimming_pool=$11,
+        building_area=$12,
+        land_area=$13,
+        ownership=$14,
+        construction_status=$15,
+        floors=$16,
+        furnished=$17,
+        parking=$18,
+        is_featured=$19,
+        updated_at=NOW()
+      WHERE property_id=$20
       RETURNING *;
-      `,
-      [
-        name, price, location, type, status, description, contact_info,
-        bedrooms, bathrooms, swimming_pool, building_area, land_area, ownership,
-        construction_status, floors, furnished, parking, is_featured, id
-      ]
-    );
+    `;
 
-    res.json({ message: 'Property updated successfully' });
+    const values = [
+      name, price, location, type, status, description, contact_info,
+      currentImages,
+      bedrooms, bathrooms, swimming_pool, building_area, land_area,
+      ownership, construction_status, floors, furnished, parking, is_featured,
+      id
+    ];
+
+    const updated = await pool.query(updateQuery, values);
+
+    res.json({ message: 'Property updated successfully', property: updated.rows[0] });
 
   } catch (err) {
     console.error('Property update error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 
