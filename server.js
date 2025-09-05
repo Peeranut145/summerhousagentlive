@@ -16,6 +16,7 @@ const { createFolder, uploadFileToDrive } = require('./drive');
 const app = express();
 const port = process.env.PORT || 5000;
 const cloudinary = require('cloudinary').v2;
+const favoritesRoutes = require('./routes/favorites');
 // ---------------------- Database ----------------------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -33,7 +34,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(helmet());
 app.use(morgan('combined'));
-
+app.use('/api/favorites', favoritesRoutes);
 // Rate limiter แบบ global
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -185,6 +186,53 @@ app.post('/api/reset-password-by-token', async (req, res) => {
   }
 });
 
+
+//------------------------Fav-------------------------------
+
+// ✅ GET favorites by user
+app.get('/api/favorites/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const result = await pool.query(
+      'SELECT property_id FROM favorites WHERE user_id = $1',
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching favorites:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ ADD favorite
+app.post('/api/favorites', async (req, res) => {
+  try {
+    const { user_id, property_id } = req.body;
+    await pool.query(
+      'INSERT INTO favorites (user_id, property_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [user_id, property_id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error adding favorite:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ REMOVE favorite
+app.delete('/api/favorites/:userId/:propertyId', async (req, res) => {
+  try {
+    const { userId, propertyId } = req.params;
+    await pool.query(
+      'DELETE FROM favorites WHERE user_id = $1 AND property_id = $2',
+      [userId, propertyId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting favorite:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 // ---------------------- Properties ----------------------
 // Get all properties
 // Get all properties
@@ -196,7 +244,7 @@ app.get('/api/properties', async (req, res) => {
     images,
         bedrooms, bathrooms, swimming_pool, building_area, land_area,
         ownership, construction_status, floors, furnished, parking,
-        is_featured, created_at, contact_info
+        is_featured, created_at, contact_info,
     FROM properties
     WHERE status=$1 OR status=$2
 
