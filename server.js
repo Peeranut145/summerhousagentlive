@@ -16,7 +16,6 @@ const { createFolder, uploadFileToDrive } = require('./drive');
 const app = express();
 const port = process.env.PORT || 5000;
 const cloudinary = require('cloudinary').v2;
-const favoritesRoutes = require('./routes/favorites');
 // ---------------------- Database ----------------------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -34,7 +33,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(helmet());
 app.use(morgan('combined'));
-app.use('/api/favorites', favoritesRoutes);
 // Rate limiter แบบ global
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -190,6 +188,7 @@ app.post('/api/reset-password-by-token', async (req, res) => {
 //------------------------Fav-------------------------------
 
 // ✅ GET favorites by user
+// GET favorites
 app.get('/api/favorites/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -207,8 +206,7 @@ app.get('/api/favorites/:userId', async (req, res) => {
   }
 });
 
-
-// ✅ ADD favorite
+// ADD favorite
 app.post('/api/favorites', async (req, res) => {
   try {
     const { user_id, property_id } = req.body;
@@ -225,8 +223,7 @@ app.post('/api/favorites', async (req, res) => {
   }
 });
 
-
-// ✅ REMOVE favorite
+// REMOVE favorite
 app.delete('/api/favorites/:userId/:propertyId', async (req, res) => {
   try {
     const { userId, propertyId } = req.params;
@@ -240,6 +237,7 @@ app.delete('/api/favorites/:userId/:propertyId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // ---------------------- Properties ----------------------
 // Get all properties
