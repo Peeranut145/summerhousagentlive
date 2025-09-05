@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 const express = require('express');
 const fs = require('fs');
 const multer = require('multer');
@@ -33,6 +34,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(helmet());
 app.use(morgan('combined'));
+app.set('trust proxy', 1);
 // Rate limiter แบบ global
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
