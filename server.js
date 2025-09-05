@@ -194,7 +194,10 @@ app.get('/api/favorites/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const result = await pool.query(
-      'SELECT property_id FROM favorites WHERE user_id = $1',
+      `SELECT p.*
+       FROM favorites f
+       JOIN properties p ON f.property_id = p.property_id
+       WHERE f.user_id = $1`,
       [userId]
     );
     res.json(result.rows);
@@ -204,12 +207,15 @@ app.get('/api/favorites/:userId', async (req, res) => {
   }
 });
 
+
 // ✅ ADD favorite
 app.post('/api/favorites', async (req, res) => {
   try {
     const { user_id, property_id } = req.body;
     await pool.query(
-      'INSERT INTO favorites (user_id, property_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      `INSERT INTO favorites (user_id, property_id)
+       VALUES ($1, $2)
+       ON CONFLICT (user_id, property_id) DO NOTHING`,
       [user_id, property_id]
     );
     res.json({ success: true });
@@ -219,12 +225,13 @@ app.post('/api/favorites', async (req, res) => {
   }
 });
 
+
 // ✅ REMOVE favorite
 app.delete('/api/favorites/:userId/:propertyId', async (req, res) => {
   try {
     const { userId, propertyId } = req.params;
     await pool.query(
-      'DELETE FROM favorites WHERE user_id = $1 AND property_id = $2',
+      `DELETE FROM favorites WHERE user_id = $1 AND property_id = $2`,
       [userId, propertyId]
     );
     res.json({ success: true });
@@ -233,6 +240,7 @@ app.delete('/api/favorites/:userId/:propertyId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 // ---------------------- Properties ----------------------
 // Get all properties
 // Get all properties
