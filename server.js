@@ -250,7 +250,7 @@ app.get('/api/properties', async (req, res) => {
     images,
         bedrooms, bathrooms, swimming_pool, building_area, land_area,
         ownership, construction_status, floors, furnished, parking,
-        is_featured, created_at, contact_info,
+        is_featured, created_at, contact_info
     FROM properties
     WHERE status=$1 OR status=$2
 
