@@ -323,7 +323,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     const bedrooms = parseInt(data.bedrooms) || 0;
     const bathrooms = parseInt(data.bathrooms) || 0;
     const is_featured = data.is_featured === 'true';
-    const swimming_pool = data.swimming_pool === 'true';
+    const swimmingPool = data.swimmingPool === 'true';
     const floors = parseInt(data.floors) || 1;
     const furnished = data.furnished === 'true';
     const parking = parseInt(data.parking) || 0;
@@ -397,7 +397,7 @@ app.put('/api/properties/:id', upload.array('images'), async (req, res) => {
   const { id } = req.params;
   const {
     name, price, location, type, status, description, contactInfo,
-    bedrooms, bathrooms, swimming_pool, buildingArea, landArea,
+    bedrooms, bathrooms, swimmingPool, buildingArea, landArea,
     ownership, constructionStatus, floors, furnished, parking,
     is_featured,remark,
     removedImages
