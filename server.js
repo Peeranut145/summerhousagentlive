@@ -250,7 +250,7 @@ app.get('/api/properties', async (req, res) => {
     images,
         bedrooms, bathrooms, swimming_pool, building_area, land_area,
         ownership, construction_status, floors, furnished, parking,
-        is_featured, created_at, contact_info
+        is_featured, created_at, contact_info,remark
     FROM properties
     WHERE status=$1 OR status=$2
 
@@ -291,7 +291,8 @@ app.get('/api/properties/:id', async (req, res) => {
           created_at AS "createdAt",
           updated_at AS "updatedAt",
           user_id AS "userId",
-          contact_info AS "contactInfo"
+          contact_info AS "contactInfo",
+          remark AS "remark"
         FROM properties
         WHERE property_id = $1;
 
@@ -346,12 +347,12 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
           (user_id, name, price, location, type, status, description, images,
           bedrooms, bathrooms, swimming_pool, building_area, land_area,
           ownership, construction_status, floors, furnished, parking,
-          is_featured, contact_info, created_at)
+          is_featured, contact_info, remark, created_at)
       VALUES
           ($1, $2, $3, $4, $5, $6, $7, $8,
           $9, $10, $11, $12, $13,
           $14, $15, $16, $17, $18,
-          $19, $20, NOW())
+          $19, $20, $21, NOW())
       RETURNING *;
 
     `, [
@@ -375,6 +376,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       parking,
       is_featured,
       contact_info
+      data.remark || null   // ✅ เพิ่มตรงนี้
     ]);
 
     res.status(201).json({
@@ -442,8 +444,9 @@ app.put('/api/properties/:id', upload.array('images'), async (req, res) => {
         furnished=$17,
         parking=$18,
         is_featured=$19,
+        remark=$20, 
         updated_at=NOW()
-      WHERE property_id=$20
+      WHERE property_id=$21
       RETURNING *;
     `;
 
@@ -452,6 +455,7 @@ app.put('/api/properties/:id', upload.array('images'), async (req, res) => {
       currentImages,
       bedrooms, bathrooms, swimming_pool, building_area, land_area,
       ownership, construction_status, floors, furnished, parking, is_featured,
+      req.body.remark || null,
       id
     ];
 
