@@ -248,9 +248,9 @@ app.get('/api/properties', async (req, res) => {
       SELECT 
     property_id, name, price, location, type, status, description,
     images,
-        bedrooms, bathrooms, swimming_pool, building_area, land_area,
-        ownership, construction_status, floors, furnished, parking,
-        is_featured, created_at, contact_info,remark
+        bedrooms, bathrooms, swimmingPool, buildingArea, landArea,
+        ownership, constructionStatus, floors, furnished, parking,
+        is_featured, created_at, contactInfo,remark
     FROM properties
     WHERE status=$1 OR status=$2
 
@@ -279,11 +279,11 @@ app.get('/api/properties/:id', async (req, res) => {
           COALESCE(images, ARRAY[]::text[]) AS images,
           bedrooms,
           bathrooms,
-          swimming_pool AS "swimmingPool",
-          building_area AS "buildingArea",
-          land_area AS "landArea",
+          swimmingPool,
+          buildingArea,
+          landArea ,
           ownership,
-          construction_status AS "constructionStatus",
+          constructionStatus,
           floors,
           furnished,
           parking,
@@ -291,8 +291,8 @@ app.get('/api/properties/:id', async (req, res) => {
           created_at AS "createdAt",
           updated_at AS "updatedAt",
           user_id AS "userId",
-          contact_info AS "contactInfo",
-          remark AS "remark"
+          contactInfo,
+          remark
         FROM properties
         WHERE property_id = $1;
 
@@ -327,7 +327,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     const floors = parseInt(data.floors) || 1;
     const furnished = data.furnished === 'true';
     const parking = parseInt(data.parking) || 0;
-    const contact_info = data.contact_info || null;
+    const contactInfo = data.contactInfo || null;
  
 
     // อัปโหลดขึ้น Cloudinary
@@ -346,9 +346,9 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     const result = await pool.query(`
       INSERT INTO properties
           (user_id, name, price, location, type, status, description, images,
-          bedrooms, bathrooms, swimming_pool, building_area, land_area,
-          ownership, construction_status, floors, furnished, parking,
-          is_featured, contact_info, remark, created_at)
+          bedrooms, bathrooms, swimmingPool, buildingArea, landArea,
+          ownership, constructionStatus, floors, furnished, parking,
+          is_featured, contactInfo, remark, created_at)
       VALUES
           ($1, $2, $3, $4, $5, $6, $7, $8,
           $9, $10, $11, $12, $13,
@@ -367,16 +367,16 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       cloudinaryUrls.length > 0 ? cloudinaryUrls : null, // 👈 ส่งเป็น array ตรง ๆ
       bedrooms,
       bathrooms,
-      swimming_pool,
-      data.building_area ? parseFloat(data.building_area) : null,
-      data.land_area ? parseFloat(data.land_area) : null,
+      swimmingPool,
+      data.buildingArea ? parseFloat(data.buildingArea) : null,
+      data.landArea ? parseFloat(data.landArea) : null,
       data.ownership || null,
-      data.construction_status || null,
+      data.constructionStatus || null,
       floors,
       furnished,
       parking,
       is_featured,
-      contact_info,
+      contactInfo,
       data.remark || null   // ✅ เพิ่มตรงนี้
     ]);
 
@@ -396,9 +396,9 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
 app.put('/api/properties/:id', upload.array('images'), async (req, res) => {
   const { id } = req.params;
   const {
-    name, price, location, type, status, description, contact_info,
-    bedrooms, bathrooms, swimming_pool, building_area, land_area,
-    ownership, construction_status, floors, furnished, parking,
+    name, price, location, type, status, description, contactInfo,
+    bedrooms, bathrooms, swimming_pool, buildingArea, landArea,
+    ownership, constructionStatus, floors, furnished, parking,
     is_featured,remark,
     removedImages
   } = req.body;
@@ -432,15 +432,15 @@ app.put('/api/properties/:id', upload.array('images'), async (req, res) => {
         type=$4,
         status=$5,
         description=$6,
-        contact_info=$7,
+        contactInfo=$7,
         images=$8,
         bedrooms=$9,
         bathrooms=$10,
-        swimming_pool=$11,
-        building_area=$12,
-        land_area=$13,
+        swimmingPool=$11,
+        buildingArea=$12,
+        landArea=$13,
         ownership=$14,
-        construction_status=$15,
+        constructionStatus=$15,
         floors=$16,
         furnished=$17,
         parking=$18,
@@ -452,10 +452,10 @@ app.put('/api/properties/:id', upload.array('images'), async (req, res) => {
     `;
 
     const values = [
-      name, price, location, type, status, description, contact_info,
+      name, price, location, type, status, description, contactInfo,
       currentImages,
-      bedrooms, bathrooms, swimming_pool, building_area, land_area,
-      ownership, construction_status, floors, furnished, parking, is_featured,
+      bedrooms, bathrooms, swimmingPool, buildingArea, landArea,
+      ownership, constructionStatus, floors, furnished, parking, is_featured,
       remark || null,
       id
     ];
