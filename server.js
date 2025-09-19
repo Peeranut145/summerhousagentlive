@@ -399,7 +399,7 @@ app.put('/api/properties/:id', upload.array('images'), async (req, res) => {
     name, price, location, type, status, description, contact_info,
     bedrooms, bathrooms, swimming_pool, building_area, land_area,
     ownership, construction_status, floors, furnished, parking,
-    is_featured,
+    is_featured,remark,
     removedImages
   } = req.body;
 
