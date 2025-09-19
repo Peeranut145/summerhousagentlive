@@ -248,9 +248,9 @@ app.get('/api/properties', async (req, res) => {
       SELECT 
     property_id, name, price, location, type, status, description,
     images,
-        bedrooms, bathrooms, swimmingPool, buildingArea, landArea,
-        ownership, constructionStatus, floors, furnished, parking,
-        is_featured, created_at, contactInfo,remark
+        bedrooms, bathrooms, "swimmingPool", "buildingArea", "landArea",
+        ownership, "constructionStatus", floors, furnished, parking,
+        is_featured, created_at, "contactInfo",remark
     FROM properties
     WHERE status=$1 OR status=$2
 
@@ -279,11 +279,11 @@ app.get('/api/properties/:id', async (req, res) => {
           COALESCE(images, ARRAY[]::text[]) AS images,
           bedrooms,
           bathrooms,
-          swimmingPool,
-          buildingArea,
-          landArea ,
+          "swimmingPool",
+          "buildingArea",
+          "landArea" ,
           ownership,
-          constructionStatus,
+          "constructionStatus",
           floors,
           furnished,
           parking,
@@ -291,7 +291,7 @@ app.get('/api/properties/:id', async (req, res) => {
           created_at AS "createdAt",
           updated_at AS "updatedAt",
           user_id AS "userId",
-          contactInfo,
+          "contactInfo",
           remark
         FROM properties
         WHERE property_id = $1;
@@ -346,9 +346,9 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     const result = await pool.query(`
       INSERT INTO properties
           (user_id, name, price, location, type, status, description, images,
-          bedrooms, bathrooms, swimmingPool, buildingArea, landArea,
-          ownership, constructionStatus, floors, furnished, parking,
-          is_featured, contactInfo, remark, created_at)
+          bedrooms, bathrooms, "swimmingPool", "buildingArea", "landArea",
+          ownership, "constructionStatus", floors, furnished, parking,
+          is_featured, "contactInfo", remark, created_at)
       VALUES
           ($1, $2, $3, $4, $5, $6, $7, $8,
           $9, $10, $11, $12, $13,
@@ -432,15 +432,15 @@ app.put('/api/properties/:id', upload.array('images'), async (req, res) => {
         type=$4,
         status=$5,
         description=$6,
-        contactInfo=$7,
+        "contactInfo"=$7,
         images=$8,
         bedrooms=$9,
         bathrooms=$10,
-        swimmingPool=$11,
-        buildingArea=$12,
-        landArea=$13,
+        "swimmingPool"=$11,
+        "buildingArea"=$12,
+        "landArea"=$13,
         ownership=$14,
-        constructionStatus=$15,
+        "constructionStatus"=$15,
         floors=$16,
         furnished=$17,
         parking=$18,
