@@ -328,6 +328,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
     const furnished = data.furnished === 'true';
     const parking = parseInt(data.parking) || 0;
     const contact_info = data.contact_info || null;
+ 
 
     // อัปโหลดขึ้น Cloudinary
     if (req.files && req.files.length > 0) {
@@ -375,7 +376,7 @@ app.post('/api/properties', upload.array('images'), async (req, res) => {
       furnished,
       parking,
       is_featured,
-      contact_info
+      contact_info,
       data.remark || null   // ✅ เพิ่มตรงนี้
     ]);
 
@@ -455,7 +456,7 @@ app.put('/api/properties/:id', upload.array('images'), async (req, res) => {
       currentImages,
       bedrooms, bathrooms, swimming_pool, building_area, land_area,
       ownership, construction_status, floors, furnished, parking, is_featured,
-      req.body.remark || null,
+      remark || null,
       id
     ];
 
