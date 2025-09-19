@@ -252,9 +252,9 @@ app.get('/api/properties', async (req, res) => {
         ownership, "constructionStatus", floors, furnished, parking,
         is_featured, created_at, "contactInfo",remark
     FROM properties
-    WHERE status=$1 OR status=$2
+    WHERE status=$1 OR status=$2 OR status=$3
 
-    `, ['Buy', 'Rent']);
+    `, ['Buy', 'Rent', 'Sold Out']);
     res.json(result.rows);  // images จะเป็น array ของ JS เลย
   } catch (err) {
     console.error('Properties fetch error:', err);
