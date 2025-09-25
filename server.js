@@ -153,7 +153,7 @@ app.post('/api/request-reset-password', async (req, res) => {
       ON CONFLICT (user_id) DO UPDATE SET token=$2, expires_at=$3
     `, [user.user_id, token, expiresAt]);
 
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const resetUrl = `${process.env.FRONTENDS_URL}/reset-password?token=${token}`;
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: user.email,
